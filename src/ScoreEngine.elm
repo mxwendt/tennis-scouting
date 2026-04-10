@@ -126,15 +126,15 @@ type GameResult
 {-| Applies a point won by the given player to the current point score.
 
 Step 1 handles clean game scoring: Love → 15 → 30 → 40 → game won.
-The DeuceScore and Advantage branches are placeholders; Step 2 will replace
-them with proper deuce / advantage logic.
+Step 2 adds full deuce / advantage logic, controlled by the DeuceFormat.
 
 -}
 applyPointToGame :
-    Player
+    DeuceFormat
+    -> Player
     -> { playerA : GameScore, playerB : GameScore }
     -> GameResult
-applyPointToGame winner scores =
+applyPointToGame deuceFormat winner scores =
     case getScore winner scores of
         Love ->
             GameContinues (setScore winner Fifteen scores)
@@ -146,17 +146,42 @@ applyPointToGame winner scores =
             GameContinues (setScore winner Forty scores)
 
         Forty ->
-            -- Step 2 will extend this branch to detect 40–40 (deuce) before
-            -- awarding the game.
-            GameWonBy winner
+            -- Check whether the opponent is also at Forty (40–40).
+            case getScore (otherPlayer winner) scores of
+                Forty ->
+                    case deuceFormat of
+                        StandardDeuce ->
+                            GameContinues { playerA = DeuceScore, playerB = DeuceScore }
+
+                        NoAd ->
+                            GameWonBy winner
+
+                _ ->
+                    GameWonBy winner
 
         DeuceScore ->
-            -- Step 2: implement deuce / advantage logic.
-            GameWonBy winner
+            -- Check whether the opponent currently holds the Advantage.
+            -- If so, the winner has just broken back → return to deuce.
+            -- Otherwise, grant the winner the Advantage (or the game under NoAd).
+            case getScore (otherPlayer winner) scores of
+                Advantage _ ->
+                    GameContinues { playerA = DeuceScore, playerB = DeuceScore }
+
+                _ ->
+                    case deuceFormat of
+                        StandardDeuce ->
+                            GameContinues (setScore winner (Advantage winner) scores)
+
+                        NoAd ->
+                            GameWonBy winner
 
         Advantage advPlayer ->
-            -- Step 2: implement advantage win / loss logic.
-            GameWonBy advPlayer
+            if winner == advPlayer then
+                GameWonBy winner
+
+            else
+                -- Opponent took back the advantage → return to deuce.
+                GameContinues { playerA = DeuceScore, playerB = DeuceScore }
 
 
 -- INITIAL STATE
@@ -210,12 +235,12 @@ completion, tiebreaks, serving rotation, and break-point detection.
 
 -}
 applyPoint : MatchConfig -> Point -> MatchState -> MatchState
-applyPoint _ point state =
+applyPoint config point state =
     let
         winner =
             pointWinner point
     in
-    case applyPointToGame winner state.pointScore of
+    case applyPointToGame config.deuceFormat winner state.pointScore of
         GameContinues newPointScore ->
             { state | pointScore = newPointScore }
 

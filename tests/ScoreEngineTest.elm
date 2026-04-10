@@ -40,6 +40,26 @@ gameWonBy player =
     nPointsWonBy 4 player
 
 
+configNoAd : MatchConfig
+configNoAd =
+    { defaultConfig | deuceFormat = NoAd }
+
+
+{-| 3 points won by each player, leaving the game at Forty–Forty.
+-}
+toFortyForty : List Point
+toFortyForty =
+    nPointsWonBy 3 PlayerA ++ nPointsWonBy 3 PlayerB
+
+
+{-| Reaches Forty–Forty and then PlayerA wins one more point, triggering the
+transition from Forty–Forty into DeuceScore under StandardDeuce.
+-}
+enterDeuce : List Point
+enterDeuce =
+    toFortyForty ++ [ pointWonBy PlayerA ]
+
+
 -- SUITE
 
 
@@ -312,5 +332,125 @@ suite =
                     deriveMatchState defaultConfig []
                         |> .tiebreak
                         |> Expect.equal Nothing
+            ]
+        ]
+
+
+step2Suite : Test
+step2Suite =
+    describe "Step 2 — Deuce and no-ad scoring"
+        [ describe "Reaching 40–40"
+            [ test "toFortyForty → pointScore = Forty–Forty (not DeuceScore yet)" <|
+                \_ ->
+                    deriveMatchState defaultConfig toFortyForty
+                        |> .pointScore
+                        |> Expect.equal { playerA = Forty, playerB = Forty }
+            , test "toFortyForty → gameScore still 0–0 (no game awarded)" <|
+                \_ ->
+                    deriveMatchState defaultConfig toFortyForty
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 0 }
+            ]
+        , describe "Entering deuce (DeuceScore)"
+            [ test "enterDeuce → pointScore = DeuceScore–DeuceScore" <|
+                \_ ->
+                    deriveMatchState defaultConfig enterDeuce
+                        |> .pointScore
+                        |> Expect.equal { playerA = DeuceScore, playerB = DeuceScore }
+            ]
+        , describe "Standard deuce — Advantage"
+            [ test "from DeuceScore, PlayerA wins → Advantage PlayerA" <|
+                \_ ->
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA ])
+                        |> .pointScore
+                        |> Expect.equal { playerA = Advantage PlayerA, playerB = DeuceScore }
+            , test "from DeuceScore, PlayerB wins → Advantage PlayerB" <|
+                \_ ->
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB ])
+                        |> .pointScore
+                        |> Expect.equal { playerA = DeuceScore, playerB = Advantage PlayerB }
+            ]
+        , describe "Standard deuce — winning the game"
+            [ test "server wins from Advantage → gameScore 1–0" <|
+                \_ ->
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA, pointWonBy PlayerA ])
+                        |> .gameScore
+                        |> Expect.equal { playerA = 1, playerB = 0 }
+            , test "server wins from Advantage → pointScore resets to Love–Love" <|
+                \_ ->
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA, pointWonBy PlayerA ])
+                        |> .pointScore
+                        |> Expect.equal { playerA = Love, playerB = Love }
+            , test "receiver wins from Advantage (break) → gameScore 0–1" <|
+                \_ ->
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB, pointWonBy PlayerB ])
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 1 }
+            , test "receiver wins from Advantage (break) → pointScore resets to Love–Love" <|
+                \_ ->
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB, pointWonBy PlayerB ])
+                        |> .pointScore
+                        |> Expect.equal { playerA = Love, playerB = Love }
+            ]
+        , describe "Standard deuce — returning to deuce"
+            [ test "from Advantage PlayerA, PlayerB wins → back to DeuceScore" <|
+                \_ ->
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA, pointWonBy PlayerB ])
+                        |> .pointScore
+                        |> Expect.equal { playerA = DeuceScore, playerB = DeuceScore }
+            , test "from Advantage PlayerB, PlayerA wins → back to DeuceScore" <|
+                \_ ->
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB, pointWonBy PlayerA ])
+                        |> .pointScore
+                        |> Expect.equal { playerA = DeuceScore, playerB = DeuceScore }
+            ]
+        , describe "Standard deuce — multiple deuce cycles"
+            [ test "two full deuce cycles then PlayerA wins the game → gameScore 1–0" <|
+                \_ ->
+                    -- toFortyForty → 40-40
+                    -- A wins → DeuceScore (both)
+                    -- A wins → Adv A
+                    -- B wins → DeuceScore (both)
+                    -- B wins → Adv B
+                    -- A wins → DeuceScore (both)
+                    -- A wins → Adv A
+                    -- A wins → game
+                    deriveMatchState defaultConfig
+                        (toFortyForty
+                            ++ [ pointWonBy PlayerA
+                               , pointWonBy PlayerA
+                               , pointWonBy PlayerB
+                               , pointWonBy PlayerB
+                               , pointWonBy PlayerA
+                               , pointWonBy PlayerA
+                               , pointWonBy PlayerA
+                               ]
+                        )
+                        |> .gameScore
+                        |> Expect.equal { playerA = 1, playerB = 0 }
+            ]
+        , describe "No-ad scoring"
+            [ test "at 40–40, PlayerA wins first point → game for PlayerA (gameScore 1–0)" <|
+                \_ ->
+                    deriveMatchState configNoAd (toFortyForty ++ [ pointWonBy PlayerA ])
+                        |> .gameScore
+                        |> Expect.equal { playerA = 1, playerB = 0 }
+            , test "at 40–40, PlayerB wins first point → game for PlayerB (gameScore 0–1)" <|
+                \_ ->
+                    deriveMatchState configNoAd (toFortyForty ++ [ pointWonBy PlayerB ])
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 1 }
+            , test "point score resets to Love–Love after no-ad deuce win" <|
+                \_ ->
+                    deriveMatchState configNoAd (toFortyForty ++ [ pointWonBy PlayerA ])
+                        |> .pointScore
+                        |> Expect.equal { playerA = Love, playerB = Love }
+            , test "Advantage variant never produced in no-ad scoring" <|
+                \_ ->
+                    -- Confirming pointScore equals Love–Love implicitly rules out
+                    -- any Advantage constructor having been set.
+                    deriveMatchState configNoAd (toFortyForty ++ [ pointWonBy PlayerA ])
+                        |> .pointScore
+                        |> Expect.equal { playerA = Love, playerB = Love }
             ]
         ]
