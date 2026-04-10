@@ -27,5 +27,5 @@ For styling use the **Tailwind CSS** framework.
 After making changes, always run the following checks and fix any issues before considering work complete:
 
 1. **Format**: `npm run format` (elm-format)
-1. **Review**: `npm run review:fix` (elm-review)
+1. **Review**: `npm run review` (elm-review)
 3. **Tests**: `npm test` (elm-test)
