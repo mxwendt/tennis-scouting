@@ -72,6 +72,18 @@ configProSet =
     { defaultConfig | setFormat = ProSet }
 
 
+configBestOfFive : MatchConfig
+configBestOfFive =
+    { defaultConfig | matchFormat = BestOfFive }
+
+
+{-| A complete set won 6–0 by the given player (6 clean games).
+-}
+setWonBy6_0 : Player -> List Point
+setWonBy6_0 player =
+    nGamesWonBy 6 player
+
+
 -- SUITE
 
 
@@ -593,5 +605,119 @@ step3Suite =
                         (nGamesWonBy 6 PlayerB ++ nGamesWonBy 8 PlayerA)
                         |> .gameScore
                         |> Expect.equal { playerA = 0, playerB = 0 }
+            ]
+        ]
+
+
+step4Suite : Test
+step4Suite =
+    describe "Step 4 — Match scoring"
+        [ describe "matchStatus starts as InProgress"
+            [ test "empty point log → matchStatus = InProgress" <|
+                \_ ->
+                    deriveMatchState defaultConfig []
+                        |> .matchStatus
+                        |> Expect.equal InProgress
+            ]
+        , describe "Best-of-3: matchStatus after one set"
+            [ test "after 1 set won → matchStatus still InProgress" <|
+                \_ ->
+                    deriveMatchState defaultConfig (setWonBy6_0 PlayerA)
+                        |> .matchStatus
+                        |> Expect.equal InProgress
+            ]
+        , describe "Best-of-3: match won after 2 sets (2–0)"
+            [ test "PlayerA wins 2 sets straight → matchStatus = WonBy PlayerA" <|
+                \_ ->
+                    deriveMatchState defaultConfig (setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerA)
+                        |> .matchStatus
+                        |> Expect.equal (WonBy PlayerA)
+            , test "PlayerA wins 2 sets → setScores has 2 entries" <|
+                \_ ->
+                    deriveMatchState defaultConfig (setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerA)
+                        |> .setScores
+                        |> List.length
+                        |> Expect.equal 2
+            , test "PlayerB wins 2 sets straight → matchStatus = WonBy PlayerB" <|
+                \_ ->
+                    deriveMatchState defaultConfig (setWonBy6_0 PlayerB ++ setWonBy6_0 PlayerB)
+                        |> .matchStatus
+                        |> Expect.equal (WonBy PlayerB)
+            ]
+        , describe "Best-of-3: match won after 2 sets (2–1)"
+            [ test "PlayerA wins sets 1 and 3, PlayerB wins set 2 → WonBy PlayerA" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerB ++ setWonBy6_0 PlayerA)
+                        |> .matchStatus
+                        |> Expect.equal (WonBy PlayerA)
+            , test "PlayerB wins sets 2 and 3, PlayerA wins set 1 → WonBy PlayerB" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerB ++ setWonBy6_0 PlayerB)
+                        |> .matchStatus
+                        |> Expect.equal (WonBy PlayerB)
+            ]
+        , describe "Best-of-3: points after match is won are ignored"
+            [ test "extra points after match won do not change matchStatus" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerA ++ nPointsWonBy 10 PlayerB)
+                        |> .matchStatus
+                        |> Expect.equal (WonBy PlayerA)
+            , test "extra points after match won do not change setScores length" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerA ++ nPointsWonBy 10 PlayerB)
+                        |> .setScores
+                        |> List.length
+                        |> Expect.equal 2
+            ]
+        , describe "Best-of-5: matchStatus after 2 sets"
+            [ test "after 2 sets won (best-of-5) → matchStatus still InProgress" <|
+                \_ ->
+                    deriveMatchState configBestOfFive (setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerA)
+                        |> .matchStatus
+                        |> Expect.equal InProgress
+            ]
+        , describe "Best-of-5: match won after 3 sets (3–0)"
+            [ test "PlayerA wins 3 sets straight (best-of-5) → WonBy PlayerA" <|
+                \_ ->
+                    deriveMatchState configBestOfFive
+                        (setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerA)
+                        |> .matchStatus
+                        |> Expect.equal (WonBy PlayerA)
+            , test "3–0 best-of-5 → setScores has 3 entries" <|
+                \_ ->
+                    deriveMatchState configBestOfFive
+                        (setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerA ++ setWonBy6_0 PlayerA)
+                        |> .setScores
+                        |> List.length
+                        |> Expect.equal 3
+            ]
+        , describe "Best-of-5: match won after 3 sets (3–2)"
+            [ test "3–2 match → WonBy PlayerA after 5 sets" <|
+                \_ ->
+                    deriveMatchState configBestOfFive
+                        (setWonBy6_0 PlayerA
+                            ++ setWonBy6_0 PlayerB
+                            ++ setWonBy6_0 PlayerA
+                            ++ setWonBy6_0 PlayerB
+                            ++ setWonBy6_0 PlayerA
+                        )
+                        |> .matchStatus
+                        |> Expect.equal (WonBy PlayerA)
+            , test "3–2 match → setScores has 5 entries" <|
+                \_ ->
+                    deriveMatchState configBestOfFive
+                        (setWonBy6_0 PlayerA
+                            ++ setWonBy6_0 PlayerB
+                            ++ setWonBy6_0 PlayerA
+                            ++ setWonBy6_0 PlayerB
+                            ++ setWonBy6_0 PlayerA
+                        )
+                        |> .setScores
+                        |> List.length
+                        |> Expect.equal 5
             ]
         ]

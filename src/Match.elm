@@ -9,13 +9,13 @@ module Match exposing
     , SetFormat(..)
     )
 
-
 -- PLAYER
 
 
 type Player
     = PlayerA
     | PlayerB
+
 
 
 -- MATCH CONFIG
@@ -42,6 +42,7 @@ type alias MatchConfig =
     , setFormat : SetFormat
     , deuceFormat : DeuceFormat
     }
+
 
 
 -- POINT

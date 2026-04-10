@@ -10,6 +10,7 @@ module ScoreEngine exposing
 import Match exposing (..)
 
 
+
 -- OUTPUT TYPES
 -- These types are produced exclusively by the engine. The UI reads them but
 -- never constructs them directly, so they live here rather than in Match.
@@ -50,6 +51,7 @@ type alias MatchState =
     }
 
 
+
 -- HELPERS
 
 
@@ -88,6 +90,7 @@ pointWinner point =
             winner
 
 
+
 -- GAME SCORE HELPERS
 
 
@@ -113,6 +116,7 @@ setScore player score scores =
 
         PlayerB ->
             { scores | playerB = score }
+
 
 
 -- GAME RESULT
@@ -184,6 +188,7 @@ applyPointToGame deuceFormat winner scores =
                 GameContinues { playerA = DeuceScore, playerB = DeuceScore }
 
 
+
 -- SET SCORE HELPERS
 
 
@@ -217,6 +222,42 @@ setWonBy setFormat scores =
         Nothing
 
 
+
+-- MATCH SCORE HELPERS
+
+
+{-| Returns the number of sets a player must win to win the match.
+-}
+setsNeededToWin : MatchFormat -> Int
+setsNeededToWin matchFormat =
+    case matchFormat of
+        BestOfThree ->
+            2
+
+        BestOfFive ->
+            3
+
+
+{-| Counts how many sets in the archived set-score list the given player has won.
+A player wins a set when their game count is strictly greater than the opponent's.
+-}
+setsWonBy : Player -> List { playerA : Int, playerB : Int } -> Int
+setsWonBy player setScoresList =
+    List.length
+        (List.filter
+            (\s ->
+                case player of
+                    PlayerA ->
+                        s.playerA > s.playerB
+
+                    PlayerB ->
+                        s.playerB > s.playerA
+            )
+            setScoresList
+        )
+
+
+
 -- INITIAL STATE
 
 
@@ -236,6 +277,7 @@ initialMatchState config =
     , matchStatus = InProgress
     , totalPoints = { played = 0, wonByPlayerA = 0, wonByPlayerB = 0 }
     }
+
 
 
 -- APPLY POINT (FOLD STEP)
@@ -259,47 +301,63 @@ incrementGameScore player scores =
 This is the step function used inside the fold in `deriveMatchState`.
 Handles:
 
+  - Returning the state unchanged if the match has already been won.
   - Advancing the point score within the current game.
   - Detecting when a game is won and resetting the point score.
   - Incrementing the game score for the winner.
   - Detecting when a set is won, archiving it to `setScores`, and
     resetting the in-progress game score to 0–0 for the next set.
+  - Detecting when the match is won and setting `matchStatus` to `WonBy`.
 
-Later steps will extend this function to handle match completion,
-tiebreaks, serving rotation, and break-point detection.
+Later steps will extend this function to handle tiebreaks, serving
+rotation, and break-point detection.
 
 -}
 applyPoint : MatchConfig -> Point -> MatchState -> MatchState
 applyPoint config point state =
-    let
-        winner =
-            pointWinner point
-    in
-    case applyPointToGame config.deuceFormat winner state.pointScore of
-        GameContinues newPointScore ->
-            { state | pointScore = newPointScore }
+    case state.matchStatus of
+        WonBy _ ->
+            state
 
-        GameWonBy gameWinner ->
+        InProgress ->
             let
-                newGameScore =
-                    incrementGameScore gameWinner state.gameScore
+                winner =
+                    pointWinner point
             in
-            case setWonBy config.setFormat newGameScore of
-                Just _ ->
-                    -- Set is complete: archive the final game score and open a
-                    -- fresh set.
-                    { state
-                        | pointScore = emptyPointScore
-                        , gameScore = { playerA = 0, playerB = 0 }
-                        , setScores = state.setScores ++ [ newGameScore ]
-                    }
+            case applyPointToGame config.deuceFormat winner state.pointScore of
+                GameContinues newPointScore ->
+                    { state | pointScore = newPointScore }
 
-                Nothing ->
-                    -- Set still in progress: just update the game score.
-                    { state
-                        | pointScore = emptyPointScore
-                        , gameScore = newGameScore
-                    }
+                GameWonBy gameWinner ->
+                    let
+                        newGameScore =
+                            incrementGameScore gameWinner state.gameScore
+                    in
+                    case setWonBy config.setFormat newGameScore of
+                        Just setWinner ->
+                            let
+                                newSetScores =
+                                    state.setScores ++ [ newGameScore ]
+
+                                newMatchStatus =
+                                    if setsWonBy setWinner newSetScores == setsNeededToWin config.matchFormat then
+                                        WonBy setWinner
+
+                                    else
+                                        InProgress
+                            in
+                            { state
+                                | pointScore = emptyPointScore
+                                , gameScore = { playerA = 0, playerB = 0 }
+                                , setScores = newSetScores
+                                , matchStatus = newMatchStatus
+                            }
+
+                        Nothing ->
+                            { state
+                                | pointScore = emptyPointScore
+                                , gameScore = newGameScore
+                            }
 
 
 
