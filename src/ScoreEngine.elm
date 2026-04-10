@@ -309,8 +309,8 @@ Handles:
     resetting the in-progress game score to 0–0 for the next set.
   - Detecting when the match is won and setting `matchStatus` to `WonBy`.
 
-Later steps will extend this function to handle tiebreaks, serving
-rotation, and break-point detection.
+Later steps will extend this function to handle tiebreaks and
+break-point detection.
 
 -}
 applyPoint : MatchConfig -> Point -> MatchState -> MatchState
@@ -332,6 +332,9 @@ applyPoint config point state =
                     let
                         newGameScore =
                             incrementGameScore gameWinner state.gameScore
+
+                        nextServer =
+                            otherPlayer state.currentServer
                     in
                     case setWonBy config.setFormat newGameScore of
                         Just setWinner ->
@@ -351,12 +354,14 @@ applyPoint config point state =
                                 , gameScore = { playerA = 0, playerB = 0 }
                                 , setScores = newSetScores
                                 , matchStatus = newMatchStatus
+                                , currentServer = nextServer
                             }
 
                         Nothing ->
                             { state
                                 | pointScore = emptyPointScore
                                 , gameScore = newGameScore
+                                , currentServer = nextServer
                             }
 
 

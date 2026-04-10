@@ -721,3 +721,127 @@ step4Suite =
                         |> Expect.equal 5
             ]
         ]
+
+
+step5Suite : Test
+step5Suite =
+    describe "Step 5 — Serving rotation (normal games)"
+        [ describe "Initial server comes from config"
+            [ test "empty log, initialServer PlayerA → currentServer = PlayerA" <|
+                \_ ->
+                    deriveMatchState defaultConfig []
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            , test "empty log, initialServer PlayerB → currentServer = PlayerB" <|
+                \_ ->
+                    deriveMatchState { defaultConfig | initialServer = PlayerB } []
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            ]
+        , describe "Server alternates after each completed game"
+            [ test "after 1 game → server flips to PlayerB" <|
+                \_ ->
+                    deriveMatchState defaultConfig (gameWonBy PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "after 2 games → server flips back to PlayerA" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nGamesWonBy 2 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            , test "after 3 games → server is PlayerB" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nGamesWonBy 3 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "after 4 games → server is PlayerA" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nGamesWonBy 4 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            , test "after 5 games → server is PlayerB" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nGamesWonBy 5 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "initialServer PlayerB, after 1 game → currentServer = PlayerA" <|
+                \_ ->
+                    deriveMatchState { defaultConfig | initialServer = PlayerB }
+                        (gameWonBy PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            ]
+        , describe "Server does not change mid-game"
+            [ test "1 game + 1 point into next game → server is still PlayerB" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (gameWonBy PlayerA ++ nPointsWonBy 1 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "1 game + 3 points into next game → server is still PlayerB" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (gameWonBy PlayerA ++ nPointsWonBy 3 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "1 game + deuce game in progress → server is still PlayerB" <|
+                \_ ->
+                    -- enterDeuce plays 7 points leaving the score at DeuceScore
+                    -- (game not yet won, so no flip)
+                    deriveMatchState defaultConfig
+                        (gameWonBy PlayerA ++ enterDeuce)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            ]
+        , describe "Server correct across set boundaries"
+            [ test "after 6-0 set (6 games) → server back to PlayerA" <|
+                \_ ->
+                    -- 6 flips from PlayerA → PlayerA (even)
+                    deriveMatchState defaultConfig (setWonBy6_0 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            , test "after 6-0 set + 1 game of set 2 → server is PlayerB" <|
+                \_ ->
+                    -- 7 flips from PlayerA → PlayerB (odd)
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA ++ gameWonBy PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "after 7-5 set (12 games) → server back to PlayerA" <|
+                \_ ->
+                    -- 5-5 then PlayerA takes the last 2 games for 7-5 (12 total)
+                    -- 12 flips from PlayerA → PlayerA (even)
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 5 PlayerA
+                            ++ nGamesWonBy 5 PlayerB
+                            ++ nGamesWonBy 2 PlayerA
+                        )
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            , test "after 7-5 set + 1 game of set 2 → server is PlayerB" <|
+                \_ ->
+                    -- 13 flips from PlayerA → PlayerB (odd)
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 5 PlayerA
+                            ++ nGamesWonBy 5 PlayerB
+                            ++ nGamesWonBy 2 PlayerA
+                            ++ gameWonBy PlayerA
+                        )
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "initialServer PlayerB, after 6-0 set → currentServer = PlayerB" <|
+                \_ ->
+                    -- 6 flips from PlayerB → PlayerB (even)
+                    deriveMatchState { defaultConfig | initialServer = PlayerB }
+                        (setWonBy6_0 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "server correct mid second set (2 games in)" <|
+                \_ ->
+                    -- After 6-0 set (6 games) + 2 games of set 2 → 8 flips → PlayerA
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA ++ nGamesWonBy 2 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            ]
+        ]
