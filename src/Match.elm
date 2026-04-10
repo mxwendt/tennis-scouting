@@ -1,10 +1,7 @@
-module Types exposing
+module Match exposing
     ( DeuceFormat(..)
-    , GameScore(..)
     , MatchConfig
     , MatchFormat(..)
-    , MatchState
-    , MatchStatus(..)
     , Player(..)
     , Point
     , RallyTag(..)
@@ -12,13 +9,13 @@ module Types exposing
     , SetFormat(..)
     )
 
+
 -- PLAYER
 
 
 type Player
     = PlayerA
     | PlayerB
-
 
 
 -- MATCH CONFIG
@@ -47,7 +44,6 @@ type alias MatchConfig =
     }
 
 
-
 -- POINT
 
 
@@ -66,34 +62,4 @@ type ServeOutcome
 type alias Point =
     { server : Player
     , outcome : ServeOutcome
-    }
-
-
-
--- SCORE
-
-
-type GameScore
-    = Love
-    | Fifteen
-    | Thirty
-    | Forty
-    | DeuceScore
-    | Advantage Player
-
-
-type MatchStatus
-    = InProgress
-    | WonBy Player
-
-
-type alias MatchState =
-    { pointScore : { ourPlayer : GameScore, opponent : GameScore }
-    , gameScore : { ourPlayer : Int, opponent : Int }
-    , setScores : List { ourPlayer : Int, opponent : Int }
-    , tiebreak : Maybe { ourPlayer : Int, opponent : Int }
-    , currentServer : Player
-    , isBreakPoint : Bool
-    , matchStatus : MatchStatus
-    , totalPoints : { played : Int, wonByOurPlayer : Int, wonByOpponent : Int }
     }
