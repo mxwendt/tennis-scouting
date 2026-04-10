@@ -84,6 +84,25 @@ setWonBy6_0 player =
     nGamesWonBy 6 player
 
 
+{-| Reaches 6–6 within a single standard set by alternating game wins
+(A then B) six times. Neither player ever gains the 2-game lead needed
+to win the set outright, so the tiebreak is triggered on the final game.
+With `defaultConfig` (initialServer PlayerA) the tiebreak first server is
+PlayerA, because 12 games have been played and the serve has flipped back.
+-}
+sixSixPoints : List Point
+sixSixPoints =
+    List.concat (List.repeat 6 (gameWonBy PlayerA ++ gameWonBy PlayerB))
+
+
+{-| Reaches 8–8 within a single pro set by alternating game wins
+(A then B) eight times.
+-}
+eightEightPoints : List Point
+eightEightPoints =
+    List.concat (List.repeat 8 (gameWonBy PlayerA ++ gameWonBy PlayerB))
+
+
 -- SUITE
 
 
@@ -843,5 +862,273 @@ step5Suite =
                         (setWonBy6_0 PlayerA ++ nGamesWonBy 2 PlayerA)
                         |> .currentServer
                         |> Expect.equal PlayerA
+            ]
+        ]
+
+
+step6Suite : Test
+step6Suite =
+    describe "Step 6 — Tiebreak scoring and serving"
+        [ describe "Tiebreak triggered at the correct game score"
+            [ test "6–6 standard set → tiebreak is Just { 0, 0 }" <|
+                \_ ->
+                    deriveMatchState defaultConfig sixSixPoints
+                        |> .tiebreak
+                        |> Maybe.map (\tb -> { playerA = tb.playerA, playerB = tb.playerB })
+                        |> Expect.equal (Just { playerA = 0, playerB = 0 })
+            , test "6–6 standard set → gameScore stays 6–6 while tiebreak is in progress" <|
+                \_ ->
+                    deriveMatchState defaultConfig sixSixPoints
+                        |> .gameScore
+                        |> Expect.equal { playerA = 6, playerB = 6 }
+            , test "6–5 standard set → no tiebreak triggered" <|
+                \_ ->
+                    -- PlayerB wins 5 games then PlayerA wins 6: score is 6–5.
+                    -- The set is not won (need a 2-game lead) and it is not 6–6.
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 5 PlayerB ++ nGamesWonBy 6 PlayerA)
+                        |> .tiebreak
+                        |> Expect.equal Nothing
+            , test "8–8 pro set → tiebreak is Just { 0, 0 }" <|
+                \_ ->
+                    deriveMatchState configProSet eightEightPoints
+                        |> .tiebreak
+                        |> Maybe.map (\tb -> { playerA = tb.playerA, playerB = tb.playerB })
+                        |> Expect.equal (Just { playerA = 0, playerB = 0 })
+            , test "7–8 pro set → no tiebreak triggered" <|
+                \_ ->
+                    deriveMatchState configProSet
+                        (nGamesWonBy 7 PlayerA ++ nGamesWonBy 8 PlayerB)
+                        |> .tiebreak
+                        |> Expect.equal Nothing
+            ]
+        , describe "Tiebreak point scoring"
+            [ test "1 tiebreak point won by PlayerA → tiebreak score { 1, 0 }" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 1 PlayerA)
+                        |> .tiebreak
+                        |> Maybe.map (\tb -> { playerA = tb.playerA, playerB = tb.playerB })
+                        |> Expect.equal (Just { playerA = 1, playerB = 0 })
+            , test "2 A then 1 B tiebreak points → tiebreak score { 2, 1 }" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints
+                            ++ nPointsWonBy 2 PlayerA
+                            ++ nPointsWonBy 1 PlayerB
+                        )
+                        |> .tiebreak
+                        |> Maybe.map (\tb -> { playerA = tb.playerA, playerB = tb.playerB })
+                        |> Expect.equal (Just { playerA = 2, playerB = 1 })
+            , test "tiebreak points do not affect pointScore (stays Love–Love)" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 3 PlayerA)
+                        |> .pointScore
+                        |> Expect.equal { playerA = Love, playerB = Love }
+            ]
+        , describe "Standard tiebreak won (first to 7, win by 2)"
+            [ test "tiebreak won 7–5 → tiebreak = Nothing" <|
+                \_ ->
+                    -- PlayerB wins 5 first, then PlayerA wins 7.
+                    deriveMatchState defaultConfig
+                        (sixSixPoints
+                            ++ nPointsWonBy 5 PlayerB
+                            ++ nPointsWonBy 7 PlayerA
+                        )
+                        |> .tiebreak
+                        |> Expect.equal Nothing
+            , test "tiebreak won 7–5 → setScores = [{ playerA = 7, playerB = 6 }]" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints
+                            ++ nPointsWonBy 5 PlayerB
+                            ++ nPointsWonBy 7 PlayerA
+                        )
+                        |> .setScores
+                        |> Expect.equal [ { playerA = 7, playerB = 6 } ]
+            , test "tiebreak won 7–5 → gameScore resets to 0–0" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints
+                            ++ nPointsWonBy 5 PlayerB
+                            ++ nPointsWonBy 7 PlayerA
+                        )
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 0 }
+            , test "tiebreak NOT won at 6–6 (win-by-2 still required)" <|
+                \_ ->
+                    -- Each player reaches 6 tiebreak points: no one has a 2-point lead.
+                    deriveMatchState defaultConfig
+                        (sixSixPoints
+                            ++ nPointsWonBy 6 PlayerA
+                            ++ nPointsWonBy 6 PlayerB
+                        )
+                        |> .tiebreak
+                        |> Maybe.map (\tb -> { playerA = tb.playerA, playerB = tb.playerB })
+                        |> Expect.equal (Just { playerA = 6, playerB = 6 })
+            , test "extended tiebreak won 8–6 → setScores = [{ playerA = 7, playerB = 6 }]" <|
+                \_ ->
+                    -- Reaches 6–6 in the tiebreak, then PlayerA wins 2 more.
+                    deriveMatchState defaultConfig
+                        (sixSixPoints
+                            ++ nPointsWonBy 6 PlayerB
+                            ++ nPointsWonBy 8 PlayerA
+                        )
+                        |> .setScores
+                        |> Expect.equal [ { playerA = 7, playerB = 6 } ]
+            , test "tiebreak won by PlayerB 7–3 → setScores = [{ playerA = 6, playerB = 7 }]" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints
+                            ++ nPointsWonBy 3 PlayerA
+                            ++ nPointsWonBy 7 PlayerB
+                        )
+                        |> .setScores
+                        |> Expect.equal [ { playerA = 6, playerB = 7 } ]
+            ]
+        , describe "Match tiebreak (final set, first to 10, win by 2)"
+            [ test "final-set tiebreak triggered at 6–6 in best-of-3 set 3" <|
+                \_ ->
+                    -- Sets 1 and 2 complete (1–1), then 6–6 in set 3.
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA
+                            ++ setWonBy6_0 PlayerB
+                            ++ sixSixPoints
+                        )
+                        |> .tiebreak
+                        |> Maybe.map (\tb -> { playerA = tb.playerA, playerB = tb.playerB })
+                        |> Expect.equal (Just { playerA = 0, playerB = 0 })
+            , test "match tiebreak NOT won at 9–8 (need 10 with win-by-2)" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA
+                            ++ setWonBy6_0 PlayerB
+                            ++ sixSixPoints
+                            ++ nPointsWonBy 8 PlayerB
+                            ++ nPointsWonBy 9 PlayerA
+                        )
+                        |> .tiebreak
+                        |> Maybe.map (\tb -> { playerA = tb.playerA, playerB = tb.playerB })
+                        |> Expect.equal (Just { playerA = 9, playerB = 8 })
+            , test "match tiebreak won 10–8 → matchStatus = WonBy PlayerA" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA
+                            ++ setWonBy6_0 PlayerB
+                            ++ sixSixPoints
+                            ++ nPointsWonBy 8 PlayerB
+                            ++ nPointsWonBy 10 PlayerA
+                        )
+                        |> .matchStatus
+                        |> Expect.equal (WonBy PlayerA)
+            , test "match tiebreak won 10–8 → setScores has 3 entries" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA
+                            ++ setWonBy6_0 PlayerB
+                            ++ sixSixPoints
+                            ++ nPointsWonBy 8 PlayerB
+                            ++ nPointsWonBy 10 PlayerA
+                        )
+                        |> .setScores
+                        |> List.length
+                        |> Expect.equal 3
+            , test "extended match tiebreak won 11–9 → matchStatus = WonBy PlayerA" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (setWonBy6_0 PlayerA
+                            ++ setWonBy6_0 PlayerB
+                            ++ sixSixPoints
+                            ++ nPointsWonBy 9 PlayerB
+                            ++ nPointsWonBy 11 PlayerA
+                        )
+                        |> .matchStatus
+                        |> Expect.equal (WonBy PlayerA)
+            ]
+        , describe "Tiebreak serving rotation"
+            [ test "first tiebreak point served by the player who did not serve the last game" <|
+                \_ ->
+                    -- With defaultConfig (initialServer PlayerA) and sixSixPoints (12 games),
+                    -- serving has flipped an even number of times → tiebreak first server = PlayerA.
+                    deriveMatchState defaultConfig sixSixPoints
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            , test "after tiebreak point 1 (index 0 played), server changes to other player" <|
+                \_ ->
+                    -- Tiebreak first server = PlayerA. After point at index 0,
+                    -- the server for index 1 is PlayerB.
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 1 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "after tiebreak point 2 (index 1 played), same player serves again" <|
+                \_ ->
+                    -- Points at indices 1 and 2 are both served by PlayerB.
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 2 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "after tiebreak point 3 (index 2 played), server switches back" <|
+                \_ ->
+                    -- Points at indices 3 and 4 are served by PlayerA.
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 3 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            , test "after tiebreak point 4 (index 3 played), same player serves again" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 4 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            , test "after tiebreak point 5 (index 4 played), server switches to other player" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 5 PlayerA)
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            ]
+        , describe "Server at the start of the set following a tiebreak"
+            [ test "after tiebreak set, first server of new set is the tiebreak receiver" <|
+                \_ ->
+                    -- Tiebreak first server was PlayerA; post-tiebreak server is
+                    -- PlayerB (the player who did not serve first in the tiebreak).
+                    deriveMatchState defaultConfig
+                        (sixSixPoints
+                            ++ nPointsWonBy 5 PlayerB
+                            ++ nPointsWonBy 7 PlayerA
+                        )
+                        |> .currentServer
+                        |> Expect.equal PlayerB
+            , test "after tiebreak set, first game of new set flips server to PlayerA" <|
+                \_ ->
+                    -- PlayerB serves the first game of set 2; after it ends the
+                    -- server flips to PlayerA.
+                    deriveMatchState defaultConfig
+                        (sixSixPoints
+                            ++ nPointsWonBy 5 PlayerB
+                            ++ nPointsWonBy 7 PlayerA
+                            ++ gameWonBy PlayerA
+                        )
+                        |> .currentServer
+                        |> Expect.equal PlayerA
+            ]
+        , describe "Pro set tiebreak"
+            [ test "pro set tiebreak won 7–5 → setScores = [{ playerA = 9, playerB = 8 }]" <|
+                \_ ->
+                    deriveMatchState configProSet
+                        (eightEightPoints
+                            ++ nPointsWonBy 5 PlayerB
+                            ++ nPointsWonBy 7 PlayerA
+                        )
+                        |> .setScores
+                        |> Expect.equal [ { playerA = 9, playerB = 8 } ]
+            , test "pro set 7–8 is still in progress (no tiebreak yet, set not won)" <|
+                \_ ->
+                    deriveMatchState configProSet
+                        (nGamesWonBy 7 PlayerA ++ nGamesWonBy 8 PlayerB)
+                        |> .tiebreak
+                        |> Expect.equal Nothing
             ]
         ]
