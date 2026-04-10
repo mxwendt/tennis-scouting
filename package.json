@@ -12,9 +12,9 @@
     "review:fix": "elm-review --fix"
   },
   "devDependencies": {
-    "elm": "^0.19.1-6",
-    "elm-format": "^0.8.8",
-    "elm-review": "^2.13.5",
-    "elm-test": "^0.19.1-revision17"
+    "elm": "0.19.1-6",
+    "elm-format": "0.8.8",
+    "elm-review": "2.13.5",
+    "elm-test": "0.19.1-revision17"
   }
 }
