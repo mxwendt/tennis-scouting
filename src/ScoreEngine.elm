@@ -446,6 +446,19 @@ updateBreakPoints receiver wasConverted bps =
             { bps | playerB = increment bps.playerB }
 
 
+incrementTotalPoints :
+    Player
+    -> { played : Int, wonByPlayerA : Int, wonByPlayerB : Int }
+    -> { played : Int, wonByPlayerA : Int, wonByPlayerB : Int }
+incrementTotalPoints winner tp =
+    case winner of
+        PlayerA ->
+            { tp | played = tp.played + 1, wonByPlayerA = tp.wonByPlayerA + 1 }
+
+        PlayerB ->
+            { tp | played = tp.played + 1, wonByPlayerB = tp.wonByPlayerB + 1 }
+
+
 
 -- INITIAL STATE
 
@@ -571,6 +584,7 @@ applyTiebreakPoint config point tb state =
             , currentServer = nextServer
             , matchStatus = newMatchStatus
             , isBreakPoint = False
+            , totalPoints = incrementTotalPoints winner state.totalPoints
         }
 
     else
@@ -582,6 +596,7 @@ applyTiebreakPoint config point tb state =
             | tiebreak = Just newTb
             , currentServer = tiebreakServerFor tb.firstServer totalPlayed
             , isBreakPoint = False
+            , totalPoints = incrementTotalPoints winner state.totalPoints
         }
 
 
@@ -623,6 +638,7 @@ applyRegularPoint config point state =
                 , isBreakPoint =
                     computeIsBreakPoint config.deuceFormat state.currentServer newPointScore
                 , breakPoints = newBreakPoints
+                , totalPoints = incrementTotalPoints winner state.totalPoints
             }
 
         GameWonBy gameWinner ->
@@ -654,6 +670,7 @@ applyRegularPoint config point state =
                         , currentServer = nextServer
                         , isBreakPoint = False
                         , breakPoints = newBreakPoints
+                        , totalPoints = incrementTotalPoints winner state.totalPoints
                     }
 
                 Nothing ->
@@ -672,6 +689,7 @@ applyRegularPoint config point state =
                             , currentServer = nextServer
                             , isBreakPoint = False
                             , breakPoints = newBreakPoints
+                            , totalPoints = incrementTotalPoints winner state.totalPoints
                         }
 
                     else
@@ -681,6 +699,7 @@ applyRegularPoint config point state =
                             , currentServer = nextServer
                             , isBreakPoint = False
                             , breakPoints = newBreakPoints
+                            , totalPoints = incrementTotalPoints winner state.totalPoints
                         }
 
 

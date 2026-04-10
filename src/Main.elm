@@ -8,7 +8,7 @@ import Html exposing (Html, h1, text)
 -- MAIN
 
 
-main : Program () Model Msg
+main : Program () Model Never
 main =
     Browser.sandbox
         { init = init
@@ -34,21 +34,15 @@ init =
 -- UPDATE
 
 
-type Msg
-    = NoOp
-
-
-update : Msg -> Model -> Model
-update msg model =
-    case msg of
-        NoOp ->
-            model
+update : Never -> Model -> Model
+update msg _ =
+    never msg
 
 
 
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Html Never
 view _ =
     h1 [] [ text "Tennis Scouting" ]

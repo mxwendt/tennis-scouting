@@ -1308,3 +1308,114 @@ step7Suite =
                             }
             ]
         ]
+
+
+step8Suite : Test
+step8Suite =
+    describe "Step 8 — Point totals and derived statistics"
+        [ describe "total points played"
+            [ test "no points → played = 0" <|
+                \_ ->
+                    deriveMatchState defaultConfig []
+                        |> .totalPoints
+                        |> .played
+                        |> Expect.equal 0
+            , test "1 point → played = 1" <|
+                \_ ->
+                    deriveMatchState defaultConfig [ pointWonBy PlayerA ]
+                        |> .totalPoints
+                        |> .played
+                        |> Expect.equal 1
+            , test "4 points → played = 4" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nPointsWonBy 4 PlayerA)
+                        |> .totalPoints
+                        |> .played
+                        |> Expect.equal 4
+            , test "a full game (4 points) adds 4 to played" <|
+                \_ ->
+                    deriveMatchState defaultConfig (gameWonBy PlayerA)
+                        |> .totalPoints
+                        |> .played
+                        |> Expect.equal 4
+            ]
+        , describe "points won per player"
+            [ test "4 points won by PlayerA → wonByPlayerA = 4, wonByPlayerB = 0" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nPointsWonBy 4 PlayerA)
+                        |> .totalPoints
+                        |> Expect.equal { played = 4, wonByPlayerA = 4, wonByPlayerB = 0 }
+            , test "4 points won by PlayerB → wonByPlayerA = 0, wonByPlayerB = 4" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nPointsWonBy 4 PlayerB)
+                        |> .totalPoints
+                        |> Expect.equal { played = 4, wonByPlayerA = 0, wonByPlayerB = 4 }
+            , test "mixed points" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (nPointsWonBy 3 PlayerA ++ nPointsWonBy 2 PlayerB)
+                        |> .totalPoints
+                        |> Expect.equal { played = 5, wonByPlayerA = 3, wonByPlayerB = 2 }
+            ]
+        , describe "serve outcome attribution"
+            [ test "Ace awards point to the server (PlayerA)" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        [ { server = PlayerA, outcome = Ace } ]
+                        |> .totalPoints
+                        |> Expect.equal { played = 1, wonByPlayerA = 1, wonByPlayerB = 0 }
+            , test "ServeWinner awards point to the server (PlayerA)" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        [ { server = PlayerA, outcome = ServeWinner } ]
+                        |> .totalPoints
+                        |> Expect.equal { played = 1, wonByPlayerA = 1, wonByPlayerB = 0 }
+            , test "DoubleFault awards point to the receiver (PlayerB when PlayerA serves)" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        [ { server = PlayerA, outcome = DoubleFault } ]
+                        |> .totalPoints
+                        |> Expect.equal { played = 1, wonByPlayerA = 0, wonByPlayerB = 1 }
+            , test "DoubleFault awards point to PlayerA when PlayerB serves" <|
+                \_ ->
+                    -- Start game 2 where PlayerB serves by first winning a game for PlayerA.
+                    let
+                        points =
+                            gameWonBy PlayerA
+                                ++ [ { server = PlayerB, outcome = DoubleFault } ]
+                    in
+                    deriveMatchState defaultConfig points
+                        |> .totalPoints
+                        |> Expect.equal { played = 5, wonByPlayerA = 5, wonByPlayerB = 0 }
+            , test "InRally awards point to the rally winner regardless of server" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        [ { server = PlayerA, outcome = InRally PlayerB Nothing } ]
+                        |> .totalPoints
+                        |> Expect.equal { played = 1, wonByPlayerA = 0, wonByPlayerB = 1 }
+            ]
+        , describe "points counted across game and set boundaries"
+            [ test "a full set (6 games x 4 points) → played = 24" <|
+                \_ ->
+                    deriveMatchState defaultConfig (setWonBy6_0 PlayerA)
+                        |> .totalPoints
+                        |> .played
+                        |> Expect.equal 24
+            , test "tiebreak points are counted" <|
+                \_ ->
+                    -- sixSixPoints = 6 × (4 + 4) = 48 points; plus 7 tiebreak points.
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 7 PlayerA)
+                        |> .totalPoints
+                        |> .played
+                        |> Expect.equal 55
+            , test "tiebreak points attributed to correct player" <|
+                \_ ->
+                    -- sixSixPoints: PlayerA wins 24, PlayerB wins 24 (48 total).
+                    -- 7 tiebreak points all for PlayerA → wonByPlayerA = 31, wonByPlayerB = 24.
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 7 PlayerA)
+                        |> .totalPoints
+                        |> Expect.equal { played = 55, wonByPlayerA = 31, wonByPlayerB = 24 }
+            ]
+        ]
