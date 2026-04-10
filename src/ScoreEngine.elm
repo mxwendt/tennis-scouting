@@ -184,6 +184,39 @@ applyPointToGame deuceFormat winner scores =
                 GameContinues { playerA = DeuceScore, playerB = DeuceScore }
 
 
+-- SET SCORE HELPERS
+
+
+{-| Checks whether a set has been won given the current game score and set format.
+
+A standard set is won when a player reaches 6 games with a lead of at least 2.
+A pro set is won when a player reaches 8 games with a lead of at least 2.
+
+Returns `Just Player` for the winner, or `Nothing` if the set is still in
+progress. Tiebreak detection (6–6 / 8–8) is handled separately in Step 6.
+
+-}
+setWonBy : SetFormat -> { playerA : Int, playerB : Int } -> Maybe Player
+setWonBy setFormat scores =
+    let
+        threshold =
+            case setFormat of
+                StandardSet ->
+                    6
+
+                ProSet ->
+                    8
+    in
+    if scores.playerA >= threshold && scores.playerA - scores.playerB >= 2 then
+        Just PlayerA
+
+    else if scores.playerB >= threshold && scores.playerB - scores.playerA >= 2 then
+        Just PlayerB
+
+    else
+        Nothing
+
+
 -- INITIAL STATE
 
 
@@ -224,14 +257,16 @@ incrementGameScore player scores =
 {-| Applies a single recorded point to the current match state.
 
 This is the step function used inside the fold in `deriveMatchState`.
-For Step 1 it handles:
+Handles:
 
   - Advancing the point score within the current game.
   - Detecting when a game is won and resetting the point score.
   - Incrementing the game score for the winner.
+  - Detecting when a set is won, archiving it to `setScores`, and
+    resetting the in-progress game score to 0–0 for the next set.
 
-Later steps will extend this function to handle set completion, match
-completion, tiebreaks, serving rotation, and break-point detection.
+Later steps will extend this function to handle match completion,
+tiebreaks, serving rotation, and break-point detection.
 
 -}
 applyPoint : MatchConfig -> Point -> MatchState -> MatchState
@@ -245,10 +280,27 @@ applyPoint config point state =
             { state | pointScore = newPointScore }
 
         GameWonBy gameWinner ->
-            { state
-                | pointScore = emptyPointScore
-                , gameScore = incrementGameScore gameWinner state.gameScore
-            }
+            let
+                newGameScore =
+                    incrementGameScore gameWinner state.gameScore
+            in
+            case setWonBy config.setFormat newGameScore of
+                Just _ ->
+                    -- Set is complete: archive the final game score and open a
+                    -- fresh set.
+                    { state
+                        | pointScore = emptyPointScore
+                        , gameScore = { playerA = 0, playerB = 0 }
+                        , setScores = state.setScores ++ [ newGameScore ]
+                    }
+
+                Nothing ->
+                    -- Set still in progress: just update the game score.
+                    { state
+                        | pointScore = emptyPointScore
+                        , gameScore = newGameScore
+                    }
+
 
 
 -- MAIN DERIVATION FUNCTION

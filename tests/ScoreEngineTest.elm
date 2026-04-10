@@ -60,6 +60,18 @@ enterDeuce =
     toFortyForty ++ [ pointWonBy PlayerA ]
 
 
+{-| Builds a sequence of n clean 4-point games all won by the given player.
+-}
+nGamesWonBy : Int -> Player -> List Point
+nGamesWonBy n player =
+    List.concat (List.repeat n (gameWonBy player))
+
+
+configProSet : MatchConfig
+configProSet =
+    { defaultConfig | setFormat = ProSet }
+
+
 -- SUITE
 
 
@@ -452,5 +464,134 @@ step2Suite =
                     deriveMatchState configNoAd (toFortyForty ++ [ pointWonBy PlayerA ])
                         |> .pointScore
                         |> Expect.equal { playerA = Love, playerB = Love }
+            ]
+        ]
+
+
+step3Suite : Test
+step3Suite =
+    describe "Step 3 — Set scoring"
+        [ describe "Standard set won 6–0"
+            [ test "PlayerA wins 6 games → setScores = [{ playerA = 6, playerB = 0 }]" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nGamesWonBy 6 PlayerA)
+                        |> .setScores
+                        |> Expect.equal [ { playerA = 6, playerB = 0 } ]
+            , test "PlayerA wins 6 games → gameScore resets to 0–0" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nGamesWonBy 6 PlayerA)
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 0 }
+            , test "PlayerB wins 6 games → setScores = [{ playerA = 0, playerB = 6 }]" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nGamesWonBy 6 PlayerB)
+                        |> .setScores
+                        |> Expect.equal [ { playerA = 0, playerB = 6 } ]
+            , test "PlayerB wins 6 games → gameScore resets to 0–0" <|
+                \_ ->
+                    deriveMatchState defaultConfig (nGamesWonBy 6 PlayerB)
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 0 }
+            ]
+        , describe "Standard set won 6–4"
+            [ test "PlayerB leads 4 games then PlayerA wins 6 → setScores = [{ playerA = 6, playerB = 4 }]" <|
+                \_ ->
+                    -- PlayerB wins 4 first so the score climbs to 0–4,
+                    -- then PlayerA wins 6 straight to reach 6–4 (lead of 2).
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 4 PlayerB ++ nGamesWonBy 6 PlayerA)
+                        |> .setScores
+                        |> Expect.equal [ { playerA = 6, playerB = 4 } ]
+            , test "6–4 set → gameScore resets to 0–0" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 4 PlayerB ++ nGamesWonBy 6 PlayerA)
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 0 }
+            ]
+        , describe "Set does NOT end at 6–5 (lead of only 1)"
+            [ test "score at 6–5 → setScores is still empty" <|
+                \_ ->
+                    -- PlayerB wins 5 first (0–5), then PlayerA wins 6 (6–5).
+                    -- At 6–5 the lead is only 1, so the set must stay open.
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 5 PlayerB ++ nGamesWonBy 6 PlayerA)
+                        |> .setScores
+                        |> Expect.equal []
+            , test "score at 6–5 → gameScore is { playerA = 6, playerB = 5 }" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 5 PlayerB ++ nGamesWonBy 6 PlayerA)
+                        |> .gameScore
+                        |> Expect.equal { playerA = 6, playerB = 5 }
+            ]
+        , describe "Standard set won 7–5"
+            [ test "PlayerB leads 5 then PlayerA wins 7 → setScores = [{ playerA = 7, playerB = 5 }]" <|
+                \_ ->
+                    -- 0–5 after 5 PlayerB games; then PlayerA wins 7 straight.
+                    -- Score passes through 6–5 (no win) and resolves at 7–5.
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 5 PlayerB ++ nGamesWonBy 7 PlayerA)
+                        |> .setScores
+                        |> Expect.equal [ { playerA = 7, playerB = 5 } ]
+            , test "7–5 set → gameScore resets to 0–0" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 5 PlayerB ++ nGamesWonBy 7 PlayerA)
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 0 }
+            ]
+        , describe "Two completed sets"
+            [ test "two 6–0 sets → setScores has two entries" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 6 PlayerA ++ nGamesWonBy 6 PlayerA)
+                        |> .setScores
+                        |> Expect.equal
+                            [ { playerA = 6, playerB = 0 }
+                            , { playerA = 6, playerB = 0 }
+                            ]
+            , test "after two sets, gameScore is 0–0 (fresh third set)" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 6 PlayerA ++ nGamesWonBy 6 PlayerA)
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 0 }
+            , test "games played after set 1 are tracked in the new set's gameScore" <|
+                \_ ->
+                    -- PlayerA wins set 1 (6–0), then wins 2 more games in set 2.
+                    deriveMatchState defaultConfig
+                        (nGamesWonBy 6 PlayerA ++ nGamesWonBy 2 PlayerA)
+                        |> .gameScore
+                        |> Expect.equal { playerA = 2, playerB = 0 }
+            ]
+        , describe "Pro set — does NOT end at 6–4"
+            [ test "pro set: score at 6–4 → setScores is empty" <|
+                \_ ->
+                    deriveMatchState configProSet
+                        (nGamesWonBy 4 PlayerB ++ nGamesWonBy 6 PlayerA)
+                        |> .setScores
+                        |> Expect.equal []
+            , test "pro set: score at 6–4 → gameScore is { playerA = 6, playerB = 4 }" <|
+                \_ ->
+                    deriveMatchState configProSet
+                        (nGamesWonBy 4 PlayerB ++ nGamesWonBy 6 PlayerA)
+                        |> .gameScore
+                        |> Expect.equal { playerA = 6, playerB = 4 }
+            ]
+        , describe "Pro set won 8–6"
+            [ test "pro set: PlayerB leads 6 then PlayerA wins 8 → setScores = [{ playerA = 8, playerB = 6 }]" <|
+                \_ ->
+                    -- 0–6 after 6 PlayerB games; PlayerA needs 8 wins to reach 8–6.
+                    deriveMatchState configProSet
+                        (nGamesWonBy 6 PlayerB ++ nGamesWonBy 8 PlayerA)
+                        |> .setScores
+                        |> Expect.equal [ { playerA = 8, playerB = 6 } ]
+            , test "pro set 8–6 → gameScore resets to 0–0" <|
+                \_ ->
+                    deriveMatchState configProSet
+                        (nGamesWonBy 6 PlayerB ++ nGamesWonBy 8 PlayerA)
+                        |> .gameScore
+                        |> Expect.equal { playerA = 0, playerB = 0 }
             ]
         ]
