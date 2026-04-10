@@ -4,6 +4,7 @@ import Browser
 import Html exposing (Html, h1, text)
 
 
+
 -- MAIN
 
 
@@ -14,6 +15,7 @@ main =
         , view = view
         , update = update
         }
+
 
 
 -- MODEL
@@ -28,6 +30,7 @@ init =
     {}
 
 
+
 -- UPDATE
 
 
@@ -40,6 +43,7 @@ update msg model =
     case msg of
         NoOp ->
             model
+
 
 
 -- VIEW

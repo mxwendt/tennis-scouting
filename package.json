@@ -5,10 +5,16 @@
     "build": "elm make src/Main.elm --output=dist/main.js",
     "build:optimize": "elm make src/Main.elm --optimize --output=dist/main.js",
     "test": "elm-test",
-    "test:watch": "elm-test --watch"
+    "test:watch": "elm-test --watch",
+    "format": "elm-format src/ --yes",
+    "format:check": "elm-format src/ --validate",
+    "review": "elm-review",
+    "review:fix": "elm-review --fix"
   },
   "devDependencies": {
     "elm": "^0.19.1-6",
+    "elm-format": "^0.8.8",
+    "elm-review": "^2.13.5",
     "elm-test": "^0.19.1-revision17"
   }
 }
