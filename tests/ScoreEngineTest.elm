@@ -1132,3 +1132,179 @@ step6Suite =
                         |> Expect.equal Nothing
             ]
         ]
+
+
+step7Suite : Test
+step7Suite =
+    describe "Step 7 — Break point detection"
+        [ describe "isBreakPoint at specific game scores"
+            [ test "0–40 (Love–Forty) → isBreakPoint = True" <|
+                \_ ->
+                    -- PlayerA serves; PlayerB (receiver) has 3 points → Love–Forty.
+                    deriveMatchState defaultConfig (nPointsWonBy 3 PlayerB)
+                        |> .isBreakPoint
+                        |> Expect.equal True
+            , test "15–40 → isBreakPoint = True" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (nPointsWonBy 1 PlayerA ++ nPointsWonBy 3 PlayerB)
+                        |> .isBreakPoint
+                        |> Expect.equal True
+            , test "30–40 → isBreakPoint = True" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (nPointsWonBy 2 PlayerA ++ nPointsWonBy 3 PlayerB)
+                        |> .isBreakPoint
+                        |> Expect.equal True
+            , test "40–40 raw (Forty–Forty, before deuce transition) → isBreakPoint = False" <|
+                \_ ->
+                    -- toFortyForty ends at Forty–Forty; the deuce logic fires on
+                    -- the NEXT point, so this is not yet a break point.
+                    deriveMatchState defaultConfig toFortyForty
+                        |> .isBreakPoint
+                        |> Expect.equal False
+            , test "DeuceScore (StandardDeuce) → isBreakPoint = False" <|
+                \_ ->
+                    -- enterDeuce reaches DeuceScore–DeuceScore under StandardDeuce.
+                    -- Advantage has not been established yet, so not a break point.
+                    deriveMatchState defaultConfig enterDeuce
+                        |> .isBreakPoint
+                        |> Expect.equal False
+            , test "Advantage receiver (StandardDeuce) → isBreakPoint = True" <|
+                \_ ->
+                    -- After enterDeuce, PlayerB (receiver) wins one more → Advantage PlayerB.
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB ])
+                        |> .isBreakPoint
+                        |> Expect.equal True
+            , test "Advantage server (StandardDeuce) → isBreakPoint = False" <|
+                \_ ->
+                    -- After enterDeuce, PlayerA (server) wins one more → Advantage PlayerA.
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA ])
+                        |> .isBreakPoint
+                        |> Expect.equal False
+            , test "Forty–Forty (NoAd) → isBreakPoint = True" <|
+                \_ ->
+                    -- Under NoAd the raw 40–40 state is the deciding point (no
+                    -- DeuceScore transition; the game ends immediately). The
+                    -- receiver is one point from winning → break point.
+                    -- Note: enterDeuce does NOT work here because under NoAd the
+                    -- extra point at 40–40 ends the game rather than reaching DeuceScore.
+                    deriveMatchState configNoAd toFortyForty
+                        |> .isBreakPoint
+                        |> Expect.equal True
+            , test "after a completed game, isBreakPoint resets to False (new game at Love–Love)" <|
+                \_ ->
+                    deriveMatchState defaultConfig (gameWonBy PlayerA)
+                        |> .isBreakPoint
+                        |> Expect.equal False
+            , test "break point for PlayerA when PlayerB is serving" <|
+                \_ ->
+                    -- PlayerA wins game 1 (PlayerA serves); PlayerB serves game 2.
+                    -- PlayerA gets to Forty (0–40 from PlayerB's side) → break point for PlayerA.
+                    deriveMatchState defaultConfig
+                        (gameWonBy PlayerA ++ nPointsWonBy 3 PlayerA)
+                        |> .isBreakPoint
+                        |> Expect.equal True
+            ]
+        , describe "Break point outcomes — converted and saved"
+            [ test "break point converted: receiver wins at 0–40 → playerB.opportunities = 1, converted = 1" <|
+                \_ ->
+                    -- PlayerA serves; PlayerB reaches 0–40 then wins the game (break).
+                    deriveMatchState defaultConfig
+                        (nPointsWonBy 3 PlayerB ++ nPointsWonBy 1 PlayerB)
+                        |> .breakPoints
+                        |> .playerB
+                        |> Expect.equal { opportunities = 1, converted = 1 }
+            , test "break point saved: server wins at 0–40 → playerB.opportunities = 1, converted = 0" <|
+                \_ ->
+                    -- PlayerA wins at 0–40, saving the break point (score becomes 15–40).
+                    deriveMatchState defaultConfig
+                        (nPointsWonBy 3 PlayerB ++ nPointsWonBy 1 PlayerA)
+                        |> .breakPoints
+                        |> .playerB
+                        |> Expect.equal { opportunities = 1, converted = 0 }
+            , test "two break point opportunities: saved then converted → opportunities = 2, converted = 1" <|
+                \_ ->
+                    -- 0–40 saved (A wins), then 15–40 converted (B wins).
+                    deriveMatchState defaultConfig
+                        (nPointsWonBy 3 PlayerB
+                            ++ nPointsWonBy 1 PlayerA
+                            ++ nPointsWonBy 1 PlayerB
+                        )
+                        |> .breakPoints
+                        |> .playerB
+                        |> Expect.equal { opportunities = 2, converted = 1 }
+            , test "break point at Advantage receiver converted → playerB.opportunities = 1, converted = 1" <|
+                \_ ->
+                    -- Reach DeuceScore, then PlayerB gets Advantage, then PlayerB wins.
+                    deriveMatchState defaultConfig
+                        (enterDeuce
+                            ++ [ pointWonBy PlayerB ]
+                            ++ [ pointWonBy PlayerB ]
+                        )
+                        |> .breakPoints
+                        |> .playerB
+                        |> Expect.equal { opportunities = 1, converted = 1 }
+            , test "break point at Advantage receiver saved (back to deuce) → opportunities = 1, converted = 0" <|
+                \_ ->
+                    -- PlayerB gets Advantage, then PlayerA saves → back to DeuceScore.
+                    deriveMatchState defaultConfig
+                        (enterDeuce
+                            ++ [ pointWonBy PlayerB ]
+                            ++ [ pointWonBy PlayerA ]
+                        )
+                        |> .breakPoints
+                        |> .playerB
+                        |> Expect.equal { opportunities = 1, converted = 0 }
+            , test "no break point in a clean hold → playerB.opportunities = 0" <|
+                \_ ->
+                    -- PlayerA holds serve without PlayerB ever reaching Forty.
+                    deriveMatchState defaultConfig (gameWonBy PlayerA)
+                        |> .breakPoints
+                        |> .playerB
+                        |> Expect.equal { opportunities = 0, converted = 0 }
+            , test "break point converted by PlayerA when PlayerB serves → playerA.converted = 1" <|
+                \_ ->
+                    -- PlayerA wins game 1, then breaks PlayerB's serve in game 2.
+                    deriveMatchState defaultConfig
+                        (gameWonBy PlayerA
+                            ++ nPointsWonBy 3 PlayerA
+                            ++ nPointsWonBy 1 PlayerA
+                        )
+                        |> .breakPoints
+                        |> .playerA
+                        |> Expect.equal { opportunities = 1, converted = 1 }
+            , test "NoAd deuce break point saved (server wins) → opportunities = 1, converted = 0" <|
+                \_ ->
+                    -- Under NoAd, deuce is a break point; if the server wins it is saved.
+                    deriveMatchState configNoAd
+                        (toFortyForty ++ [ pointWonBy PlayerA ])
+                        |> .breakPoints
+                        |> .playerB
+                        |> Expect.equal { opportunities = 1, converted = 0 }
+            , test "NoAd deuce break point converted (receiver wins) → opportunities = 1, converted = 1" <|
+                \_ ->
+                    deriveMatchState configNoAd
+                        (toFortyForty ++ [ pointWonBy PlayerB ])
+                        |> .breakPoints
+                        |> .playerB
+                        |> Expect.equal { opportunities = 1, converted = 1 }
+            ]
+        , describe "isBreakPoint is False during a tiebreak"
+            [ test "mid-tiebreak (3 points in) → isBreakPoint = False" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 3 PlayerA)
+                        |> .isBreakPoint
+                        |> Expect.equal False
+            , test "tiebreak point score does not affect break point stats" <|
+                \_ ->
+                    deriveMatchState defaultConfig
+                        (sixSixPoints ++ nPointsWonBy 7 PlayerA)
+                        |> .breakPoints
+                        |> Expect.equal
+                            { playerA = { opportunities = 0, converted = 0 }
+                            , playerB = { opportunities = 0, converted = 0 }
+                            }
+            ]
+        ]

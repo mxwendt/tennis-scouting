@@ -53,6 +53,10 @@ type alias MatchState =
     , isBreakPoint : Bool
     , matchStatus : MatchStatus
     , totalPoints : { played : Int, wonByPlayerA : Int, wonByPlayerB : Int }
+    , breakPoints :
+        { playerA : { opportunities : Int, converted : Int }
+        , playerB : { opportunities : Int, converted : Int }
+        }
     }
 
 
@@ -337,6 +341,111 @@ tiebreakServerFor firstServer pointIndex =
         otherPlayer firstServer
 
 
+{-| Returns `True` when the current point score represents a break point
+opportunity for the receiver.
+
+A break point exists when the receiver is one point away from winning the game:
+
+  - 0–40, 15–40, or 30–40 (receiver at Forty, server not at Forty)
+  - Advantage receiver (StandardDeuce only)
+  - DeuceScore under NoAd scoring (single point decides the game)
+
+The raw Forty–Forty state (before the deuce transition) and DeuceScore under
+StandardDeuce are explicitly NOT break points.
+
+-}
+computeIsBreakPoint :
+    DeuceFormat
+    -> Player
+    -> { playerA : GameScore, playerB : GameScore }
+    -> Bool
+computeIsBreakPoint deuceFormat server pointScore =
+    let
+        receiver =
+            otherPlayer server
+
+        receiverScore =
+            getScore receiver pointScore
+
+        serverScore =
+            getScore server pointScore
+    in
+    case receiverScore of
+        Forty ->
+            case serverScore of
+                Forty ->
+                    -- 40–40 raw: under NoAd this is the deciding point so the
+                    -- receiver is one point from winning → break point.
+                    -- Under StandardDeuce the deuce transition fires next, so
+                    -- this is NOT yet a break point.
+                    case deuceFormat of
+                        NoAd ->
+                            True
+
+                        StandardDeuce ->
+                            False
+
+                _ ->
+                    -- 0–40, 15–40, or 30–40: receiver is one point from winning.
+                    True
+
+        DeuceScore ->
+            -- Both at DeuceScore (the running-deuce state).
+            case deuceFormat of
+                NoAd ->
+                    -- Single point decides the game: break point for the receiver.
+                    True
+
+                StandardDeuce ->
+                    -- Still at deuce; advantage must be established first.
+                    False
+
+        Advantage advPlayer ->
+            -- Break point if and only if the receiver holds the advantage.
+            advPlayer == receiver
+
+        _ ->
+            -- Love, Fifteen, or Thirty for the receiver: not in break point range.
+            False
+
+
+{-| Records a break point outcome for the given receiver.
+
+Increments `opportunities` by 1 always; also increments `converted` by 1 when
+`wasConverted` is `True` (the receiver won the point).
+
+-}
+updateBreakPoints :
+    Player
+    -> Bool
+    ->
+        { playerA : { opportunities : Int, converted : Int }
+        , playerB : { opportunities : Int, converted : Int }
+        }
+    ->
+        { playerA : { opportunities : Int, converted : Int }
+        , playerB : { opportunities : Int, converted : Int }
+        }
+updateBreakPoints receiver wasConverted bps =
+    let
+        increment stat =
+            { opportunities = stat.opportunities + 1
+            , converted =
+                if wasConverted then
+                    stat.converted + 1
+
+                else
+                    stat.converted
+            }
+    in
+    case receiver of
+        PlayerA ->
+            { bps | playerA = increment bps.playerA }
+
+        PlayerB ->
+            { bps | playerB = increment bps.playerB }
+
+
 
 -- INITIAL STATE
 
@@ -356,6 +465,10 @@ initialMatchState config =
     , isBreakPoint = False
     , matchStatus = InProgress
     , totalPoints = { played = 0, wonByPlayerA = 0, wonByPlayerB = 0 }
+    , breakPoints =
+        { playerA = { opportunities = 0, converted = 0 }
+        , playerB = { opportunities = 0, converted = 0 }
+        }
     }
 
 
@@ -457,6 +570,7 @@ applyTiebreakPoint config point tb state =
             , tiebreak = Nothing
             , currentServer = nextServer
             , matchStatus = newMatchStatus
+            , isBreakPoint = False
         }
 
     else
@@ -467,6 +581,7 @@ applyTiebreakPoint config point tb state =
         { state
             | tiebreak = Just newTb
             , currentServer = tiebreakServerFor tb.firstServer totalPlayed
+            , isBreakPoint = False
         }
 
 
@@ -487,10 +602,28 @@ applyRegularPoint config point state =
     let
         winner =
             pointWinner point
+
+        receiver =
+            otherPlayer state.currentServer
+
+        -- Record the break-point outcome for the point about to be applied.
+        -- `state.isBreakPoint` was set after the previous point and tells us
+        -- whether THIS point is a break point opportunity.
+        newBreakPoints =
+            if state.isBreakPoint then
+                updateBreakPoints receiver (winner == receiver) state.breakPoints
+
+            else
+                state.breakPoints
     in
     case applyPointToGame config.deuceFormat winner state.pointScore of
         GameContinues newPointScore ->
-            { state | pointScore = newPointScore }
+            { state
+                | pointScore = newPointScore
+                , isBreakPoint =
+                    computeIsBreakPoint config.deuceFormat state.currentServer newPointScore
+                , breakPoints = newBreakPoints
+            }
 
         GameWonBy gameWinner ->
             let
@@ -519,6 +652,8 @@ applyRegularPoint config point state =
                         , setScores = newSetScores
                         , matchStatus = newMatchStatus
                         , currentServer = nextServer
+                        , isBreakPoint = False
+                        , breakPoints = newBreakPoints
                     }
 
                 Nothing ->
@@ -535,6 +670,8 @@ applyRegularPoint config point state =
                                     , firstServer = nextServer
                                     }
                             , currentServer = nextServer
+                            , isBreakPoint = False
+                            , breakPoints = newBreakPoints
                         }
 
                     else
@@ -542,6 +679,8 @@ applyRegularPoint config point state =
                             | pointScore = emptyPointScore
                             , gameScore = newGameScore
                             , currentServer = nextServer
+                            , isBreakPoint = False
+                            , breakPoints = newBreakPoints
                         }
 
 

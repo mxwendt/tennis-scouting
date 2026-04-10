@@ -50,7 +50,6 @@ type alias MatchConfig =
 
 type RallyTag
     = Winner
-    | UnforcedError
 
 
 type ServeOutcome
