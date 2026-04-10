@@ -1,0 +1,14 @@
+{
+  "name": "tennis-scouting",
+  "private": true,
+  "scripts": {
+    "build": "elm make src/Main.elm --output=dist/main.js",
+    "build:optimize": "elm make src/Main.elm --optimize --output=dist/main.js",
+    "test": "elm-test",
+    "test:watch": "elm-test --watch"
+  },
+  "devDependencies": {
+    "elm": "^0.19.1-6",
+    "elm-test": "^0.19.1-revision17"
+  }
+}
