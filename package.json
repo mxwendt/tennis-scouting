@@ -7,7 +7,7 @@
     "build:elm:optimize": "elm make src/Main.elm --optimize --output=dist/main.js",
     "build:tailwind": "tailwindcss -i ./src/main.css -o ./dist/main.css",
     "dev": "npm run dev:tailwind & npm run dev:http-server",
-    "dev:tailwind": "tailwindcss -i ./src/main.css -o ./src/output.css --watch",
+    "dev:tailwind": "tailwindcss -i ./src/main.css -o ./dist/main.css --watch",
     "dev:http-server": "http-server .",
     "dist": "npm run build:elm:optimize && npm run build:tailwind",
     "test": "elm-test",

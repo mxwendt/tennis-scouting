@@ -26,7 +26,7 @@ in these helpers; serve outcome tests use explicit Point records instead).
 pointWonBy : Player -> Point
 pointWonBy winner =
     { server = PlayerA
-    , outcome = InRally winner Nothing
+    , outcome = InRally FirstServe winner Nothing
     }
 
 
@@ -279,13 +279,13 @@ suite =
             [ test "ace is won by server (PlayerA)" <|
                 \_ ->
                     deriveMatchState defaultConfig
-                        [ { server = PlayerA, outcome = Ace } ]
+                        [ { server = PlayerA, outcome = Ace FirstServe } ]
                         |> .pointScore
                         |> Expect.equal { playerA = Fifteen, playerB = Love }
             , test "serve winner is won by server (PlayerA)" <|
                 \_ ->
                     deriveMatchState defaultConfig
-                        [ { server = PlayerA, outcome = ServeWinner } ]
+                        [ { server = PlayerA, outcome = ServeWinner FirstServe } ]
                         |> .pointScore
                         |> Expect.equal { playerA = Fifteen, playerB = Love }
             , test "double fault is won by receiver (PlayerB when PlayerA serves)" <|
@@ -303,19 +303,19 @@ suite =
             , test "rally won by PlayerB while PlayerA serves → PlayerB scores" <|
                 \_ ->
                     deriveMatchState defaultConfig
-                        [ { server = PlayerA, outcome = InRally PlayerB Nothing } ]
+                        [ { server = PlayerA, outcome = InRally FirstServe PlayerB Nothing } ]
                         |> .pointScore
                         |> Expect.equal { playerA = Love, playerB = Fifteen }
             , test "rally won by PlayerA while PlayerB serves → PlayerA scores" <|
                 \_ ->
                     deriveMatchState defaultConfig
-                        [ { server = PlayerB, outcome = InRally PlayerA Nothing } ]
+                        [ { server = PlayerB, outcome = InRally FirstServe PlayerA Nothing } ]
                         |> .pointScore
                         |> Expect.equal { playerA = Fifteen, playerB = Love }
             , test "rally with a tag still attributes correctly" <|
                 \_ ->
                     deriveMatchState defaultConfig
-                        [ { server = PlayerA, outcome = InRally PlayerA (Just Winner) } ]
+                        [ { server = PlayerA, outcome = InRally FirstServe PlayerA (Just Winner) } ]
                         |> .pointScore
                         |> Expect.equal { playerA = Fifteen, playerB = Love }
             ]
@@ -332,11 +332,11 @@ suite =
         , describe "pointWinner helper"
             [ test "Ace → server wins" <|
                 \_ ->
-                    pointWinner { server = PlayerA, outcome = Ace }
+                    pointWinner { server = PlayerA, outcome = Ace FirstServe }
                         |> Expect.equal PlayerA
             , test "ServeWinner → server wins" <|
                 \_ ->
-                    pointWinner { server = PlayerB, outcome = ServeWinner }
+                    pointWinner { server = PlayerB, outcome = ServeWinner FirstServe }
                         |> Expect.equal PlayerB
             , test "DoubleFault → receiver wins" <|
                 \_ ->
@@ -344,7 +344,7 @@ suite =
                         |> Expect.equal PlayerB
             , test "InRally PlayerA → PlayerA wins regardless of server" <|
                 \_ ->
-                    pointWinner { server = PlayerB, outcome = InRally PlayerA Nothing }
+                    pointWinner { server = PlayerB, outcome = InRally FirstServe PlayerA Nothing }
                         |> Expect.equal PlayerA
             ]
         , describe "Initial state"
@@ -1362,13 +1362,13 @@ step8Suite =
             [ test "Ace awards point to the server (PlayerA)" <|
                 \_ ->
                     deriveMatchState defaultConfig
-                        [ { server = PlayerA, outcome = Ace } ]
+                        [ { server = PlayerA, outcome = Ace FirstServe } ]
                         |> .totalPoints
                         |> Expect.equal { played = 1, wonByPlayerA = 1, wonByPlayerB = 0 }
             , test "ServeWinner awards point to the server (PlayerA)" <|
                 \_ ->
                     deriveMatchState defaultConfig
-                        [ { server = PlayerA, outcome = ServeWinner } ]
+                        [ { server = PlayerA, outcome = ServeWinner FirstServe } ]
                         |> .totalPoints
                         |> Expect.equal { played = 1, wonByPlayerA = 1, wonByPlayerB = 0 }
             , test "DoubleFault awards point to the receiver (PlayerB when PlayerA serves)" <|
@@ -1391,7 +1391,7 @@ step8Suite =
             , test "InRally awards point to the rally winner regardless of server" <|
                 \_ ->
                     deriveMatchState defaultConfig
-                        [ { server = PlayerA, outcome = InRally PlayerB Nothing } ]
+                        [ { server = PlayerA, outcome = InRally FirstServe PlayerB Nothing } ]
                         |> .totalPoints
                         |> Expect.equal { played = 1, wonByPlayerA = 0, wonByPlayerB = 1 }
             ]

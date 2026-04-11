@@ -86,16 +86,16 @@ otherPlayer player =
 pointWinner : Point -> Player
 pointWinner point =
     case point.outcome of
-        Ace ->
+        Ace _ ->
             point.server
 
-        ServeWinner ->
+        ServeWinner _ ->
             point.server
 
         DoubleFault ->
             otherPlayer point.server
 
-        InRally winner _ ->
+        InRally _ winner _ ->
             winner
 
 

@@ -8,6 +8,7 @@ module Match exposing
     , Point
     , RallyTag(..)
     , ServeOutcome(..)
+    , ServePhase(..)
     , SetFormat(..)
     , Surface(..)
     , TiebreakFormat(..)
@@ -98,11 +99,22 @@ type RallyTag
     = Winner
 
 
+{-| Whether a serve was a first or second serve.
+
+Fault must be tapped before a second-serve outcome can be recorded, so this
+is derived from the point-entry flow rather than stored independently.
+
+-}
+type ServePhase
+    = FirstServe
+    | SecondServe
+
+
 type ServeOutcome
-    = Ace
-    | ServeWinner
-    | DoubleFault
-    | InRally Player (Maybe RallyTag) -- Player = who won the rally
+    = Ace ServePhase
+    | ServeWinner ServePhase
+    | DoubleFault -- always a second serve by definition
+    | InRally ServePhase Player (Maybe RallyTag) -- Player = who won the rally
 
 
 type alias Point =

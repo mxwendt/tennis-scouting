@@ -6,7 +6,8 @@ import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Match exposing (DeuceFormat(..), Match, MatchConfig, MatchFormat(..), MatchMetadata, Player(..), Point, RallyTag(..), ServeOutcome(..), SetFormat(..), Surface(..), TiebreakFormat(..))
+import LiveTracking
+import Match exposing (DeuceFormat(..), Match, MatchConfig, MatchFormat(..), MatchMetadata, Player(..), Point, RallyTag(..), ServeOutcome(..), ServePhase(..), SetFormat(..), Surface(..), TiebreakFormat(..))
 import MatchSetup
 
 
@@ -20,7 +21,7 @@ port saveState : Encode.Value -> Cmd msg
 type Page
     = MatchListPage
     | MatchSetupPage MatchSetup.Model
-    | LiveTrackingPage Match
+    | LiveTrackingPage LiveTracking.Model
 
 
 type alias Model =
@@ -85,8 +86,8 @@ init flags =
 type Msg
     = OpenMatchSetup
     | MatchSetupMsg MatchSetup.Msg
+    | LiveTrackingMsg LiveTracking.Msg
     | OpenMatch Match
-    | NavigateToMatchList
 
 
 
@@ -130,7 +131,7 @@ update msg model =
                                     { model
                                         | matches = newMatches
                                         , nextId = model.nextId + 1
-                                        , page = LiveTrackingPage newMatch
+                                        , page = LiveTrackingPage (LiveTracking.init newMatch)
                                     }
                             in
                             ( newModel
@@ -151,14 +152,58 @@ update msg model =
                     ( model, Cmd.none )
 
         OpenMatch match ->
-            ( { model | page = LiveTrackingPage match }
+            ( { model | page = LiveTrackingPage (LiveTracking.init match) }
             , Cmd.none
             )
 
-        NavigateToMatchList ->
-            ( { model | page = MatchListPage }
-            , Cmd.none
-            )
+        LiveTrackingMsg subMsg ->
+            case model.page of
+                LiveTrackingPage liveModel ->
+                    let
+                        ( newLiveModel, event ) =
+                            LiveTracking.update subMsg liveModel
+                    in
+                    case event of
+                        LiveTracking.NoEvent ->
+                            ( { model | page = LiveTrackingPage newLiveModel }
+                            , Cmd.none
+                            )
+
+                        LiveTracking.MatchUpdated newMatch ->
+                            let
+                                newMatches =
+                                    List.map
+                                        (\m ->
+                                            if m.id == newMatch.id then
+                                                newMatch
+
+                                            else
+                                                m
+                                        )
+                                        model.matches
+
+                                newModel =
+                                    { model
+                                        | matches = newMatches
+                                        , page = LiveTrackingPage newLiveModel
+                                    }
+                            in
+                            ( newModel
+                            , saveState
+                                (encodeSavedState
+                                    { nextId = newModel.nextId
+                                    , matches = newMatches
+                                    }
+                                )
+                            )
+
+                        LiveTracking.NavigateBack ->
+                            ( { model | page = MatchListPage }
+                            , Cmd.none
+                            )
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 
@@ -183,8 +228,8 @@ view model =
         MatchSetupPage setupModel ->
             Html.map MatchSetupMsg (MatchSetup.view setupModel)
 
-        LiveTrackingPage match ->
-            viewLiveTracking match
+        LiveTrackingPage liveModel ->
+            Html.map LiveTrackingMsg (LiveTracking.view liveModel)
 
 
 
@@ -252,40 +297,6 @@ viewMatchRow match =
 
 
 
--- LIVE TRACKING (stub)
-
-
-viewLiveTracking : Match -> Html Msg
-viewLiveTracking match =
-    div
-        [ class "min-h-screen bg-gray-900 text-gray-50 max-w-[480px] mx-auto" ]
-        [ div
-            [ class "flex items-center py-4 px-5 border-b border-gray-700" ]
-            [ button
-                [ onClick NavigateToMatchList
-                , class "bg-transparent border-0 text-gray-400 text-[15px] cursor-pointer p-0"
-                ]
-                [ text "← Matches" ]
-            ]
-        , div
-            [ class "py-6 px-5" ]
-            [ div
-                [ class "text-center mb-8" ]
-                [ div
-                    [ class "text-[22px] font-bold mb-[6px]" ]
-                    [ text (match.metadata.playerAName ++ " vs " ++ match.metadata.playerBName) ]
-                , div
-                    [ class "text-[13px] text-gray-400" ]
-                    [ text match.metadata.date ]
-                ]
-            , div
-                [ class "bg-gray-800 rounded-xl p-5 text-center text-gray-500 text-sm" ]
-                [ text "Live tracking coming soon" ]
-            ]
-        ]
-
-
-
 -- JSON ENCODING
 
 
@@ -343,21 +354,38 @@ encodePoint point =
         ]
 
 
+encodeServePhase : ServePhase -> Encode.Value
+encodeServePhase phase =
+    case phase of
+        FirstServe ->
+            Encode.string "First"
+
+        SecondServe ->
+            Encode.string "Second"
+
+
 encodeServeOutcome : ServeOutcome -> Encode.Value
 encodeServeOutcome outcome =
     case outcome of
-        Ace ->
-            Encode.string "Ace"
+        Ace phase ->
+            Encode.object
+                [ ( "type", Encode.string "Ace" )
+                , ( "phase", encodeServePhase phase )
+                ]
 
-        ServeWinner ->
-            Encode.string "ServeWinner"
+        ServeWinner phase ->
+            Encode.object
+                [ ( "type", Encode.string "ServeWinner" )
+                , ( "phase", encodeServePhase phase )
+                ]
 
         DoubleFault ->
             Encode.string "DoubleFault"
 
-        InRally winner maybeTag ->
+        InRally phase winner maybeTag ->
             Encode.object
                 [ ( "type", Encode.string "InRally" )
+                , ( "phase", encodeServePhase phase )
                 , ( "winner", encodePlayer winner )
                 , ( "tag"
                   , case maybeTag of
@@ -503,18 +531,61 @@ decodePoint =
         (Decode.field "outcome" decodeServeOutcome)
 
 
+decodeServePhase : Decode.Decoder ServePhase
+decodeServePhase =
+    Decode.string
+        |> Decode.andThen
+            (\s ->
+                case s of
+                    "First" ->
+                        Decode.succeed FirstServe
+
+                    "Second" ->
+                        Decode.succeed SecondServe
+
+                    _ ->
+                        Decode.fail ("Unknown serve phase: " ++ s)
+            )
+
+
 decodeServeOutcome : Decode.Decoder ServeOutcome
 decodeServeOutcome =
     Decode.oneOf
-        [ Decode.string
+        [ -- New object format (includes phase for Ace, ServeWinner, InRally)
+          Decode.field "type" Decode.string
+            |> Decode.andThen
+                (\t ->
+                    case t of
+                        "Ace" ->
+                            Decode.map Ace
+                                (Decode.field "phase" decodeServePhase)
+
+                        "ServeWinner" ->
+                            Decode.map ServeWinner
+                                (Decode.field "phase" decodeServePhase)
+
+                        "DoubleFault" ->
+                            Decode.succeed DoubleFault
+
+                        "InRally" ->
+                            Decode.map3 InRally
+                                (Decode.field "phase" decodeServePhase)
+                                (Decode.field "winner" decodePlayer)
+                                (Decode.field "tag" (Decode.nullable decodeRallyTag))
+
+                        _ ->
+                            Decode.fail ("Unknown serve outcome type: " ++ t)
+                )
+        , -- Legacy string format (Ace, ServeWinner, DoubleFault without phase)
+          Decode.string
             |> Decode.andThen
                 (\s ->
                     case s of
                         "Ace" ->
-                            Decode.succeed Ace
+                            Decode.succeed (Ace FirstServe)
 
                         "ServeWinner" ->
-                            Decode.succeed ServeWinner
+                            Decode.succeed (ServeWinner FirstServe)
 
                         "DoubleFault" ->
                             Decode.succeed DoubleFault
@@ -522,8 +593,8 @@ decodeServeOutcome =
                         _ ->
                             Decode.fail ("Unknown serve outcome: " ++ s)
                 )
-        , Decode.map2
-            InRally
+        , -- Legacy object format for InRally (no phase field)
+          Decode.map2 (InRally FirstServe)
             (Decode.field "winner" decodePlayer)
             (Decode.field "tag" (Decode.nullable decodeRallyTag))
         ]
