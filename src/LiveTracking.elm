@@ -298,10 +298,10 @@ view model =
 viewHeader : Html Msg
 viewHeader =
     div
-        [ class "sticky top-0 z-10 bg-gray-900 border-b border-gray-700 flex items-center py-4 px-4" ]
+        [ class "sticky top-0 z-10 bg-gray-900 border-b border-gray-700 flex items-center justify-between py-4 px-5" ]
         [ button
             [ onClick BackTapped
-            , class "bg-transparent border-0 text-gray-400 text-[15px] cursor-pointer p-0"
+            , class "bg-transparent border-0 rounded-md text-gray-400 text-sm font-semibold cursor-pointer py-2 "
             ]
             [ text "← Matches" ]
         ]

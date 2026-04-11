@@ -241,13 +241,13 @@ viewMatchList model =
     div
         [ class "min-h-screen bg-gray-900 text-gray-50 max-w-[480px] mx-auto" ]
         [ div
-            [ class "flex items-center justify-between px-5 pt-5 pb-4" ]
+            [ class "sticky top-0 z-10 bg-gray-900 border-b border-gray-700 flex items-center justify-between py-4 px-5" ]
             [ h1
-                [ class "text-[22px] font-bold m-0" ]
+                [ class "text-xl font-bold m-0" ]
                 [ text "Matches" ]
             , button
                 [ onClick OpenMatchSetup
-                , class "bg-amber-400 text-gray-900 border-0 rounded-[10px] py-[10px] px-[18px] text-sm font-semibold cursor-pointer"
+                , class "bg-amber-400 text-gray-900 border-0 rounded-md py-2 px-4 text-sm font-semibold cursor-pointer"
                 ]
                 [ text "New Match" ]
             ]
@@ -255,7 +255,7 @@ viewMatchList model =
             viewEmptyState
 
           else
-            div [ class "px-4" ]
+            div [ class "px-4 py-2" ]
                 (List.map viewMatchRow (List.reverse model.matches))
         ]
 
