@@ -54,8 +54,9 @@ toFortyForty =
     nPointsWonBy 3 PlayerA ++ nPointsWonBy 3 PlayerB
 
 
-{-| Reaches Forty–Forty and then PlayerA wins one more point, triggering the
-transition from Forty–Forty into DeuceScore under StandardDeuce.
+{-| Reaches Forty–Forty and then PlayerA wins one more point.
+Under StandardDeuce this immediately gives PlayerA the Advantage
+(no intermediate DeuceScore–DeuceScore state).
 -}
 enterDeuce : List Point
 enterDeuce =
@@ -397,22 +398,32 @@ step2Suite =
                         |> .gameScore
                         |> Expect.equal { playerA = 0, playerB = 0 }
             ]
-        , describe "Entering deuce (DeuceScore)"
-            [ test "enterDeuce → pointScore = DeuceScore–DeuceScore" <|
+        , describe "First deuce: Forty–Forty → Advantage"
+            [ test "enterDeuce → pointScore = Advantage PlayerA–DeuceScore" <|
                 \_ ->
                     deriveMatchState defaultConfig enterDeuce
                         |> .pointScore
-                        |> Expect.equal { playerA = DeuceScore, playerB = DeuceScore }
+                        |> Expect.equal { playerA = Advantage PlayerA, playerB = DeuceScore }
             ]
         , describe "Standard deuce — Advantage"
             [ test "from DeuceScore, PlayerA wins → Advantage PlayerA" <|
                 \_ ->
-                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA ])
+                    -- Reach DeuceScore via: 40-40 → AdvA → B wins back → DeuceScore.
+                    -- Then A wins → Advantage PlayerA.
+                    deriveMatchState defaultConfig
+                        (toFortyForty
+                            ++ [ pointWonBy PlayerA, pointWonBy PlayerB, pointWonBy PlayerA ]
+                        )
                         |> .pointScore
                         |> Expect.equal { playerA = Advantage PlayerA, playerB = DeuceScore }
             , test "from DeuceScore, PlayerB wins → Advantage PlayerB" <|
                 \_ ->
-                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB ])
+                    -- Reach DeuceScore via: 40-40 → AdvA → B wins back → DeuceScore.
+                    -- Then B wins → Advantage PlayerB.
+                    deriveMatchState defaultConfig
+                        (toFortyForty
+                            ++ [ pointWonBy PlayerA, pointWonBy PlayerB, pointWonBy PlayerB ]
+                        )
                         |> .pointScore
                         |> Expect.equal { playerA = DeuceScore, playerB = Advantage PlayerB }
             ]
@@ -424,47 +435,52 @@ step2Suite =
                         |> Expect.equal { playerA = 1, playerB = 0 }
             , test "server wins from Advantage → pointScore resets to Love–Love" <|
                 \_ ->
-                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA, pointWonBy PlayerA ])
+                    -- 40-40 → AdvA → game won. One point = Advantage, two = game.
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA ])
                         |> .pointScore
                         |> Expect.equal { playerA = Love, playerB = Love }
             , test "receiver wins from Advantage (break) → gameScore 0–1" <|
                 \_ ->
-                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB, pointWonBy PlayerB ])
+                    -- 40-40 → AdvB → game won (break).
+                    deriveMatchState defaultConfig
+                        (toFortyForty ++ [ pointWonBy PlayerB, pointWonBy PlayerB ])
                         |> .gameScore
                         |> Expect.equal { playerA = 0, playerB = 1 }
             , test "receiver wins from Advantage (break) → pointScore resets to Love–Love" <|
                 \_ ->
-                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB, pointWonBy PlayerB ])
+                    deriveMatchState defaultConfig
+                        (toFortyForty ++ [ pointWonBy PlayerB, pointWonBy PlayerB ])
                         |> .pointScore
                         |> Expect.equal { playerA = Love, playerB = Love }
             ]
         , describe "Standard deuce — returning to deuce"
             [ test "from Advantage PlayerA, PlayerB wins → back to DeuceScore" <|
                 \_ ->
-                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA, pointWonBy PlayerB ])
+                    -- 40-40 → AdvA → B wins back → DeuceScore.
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB ])
                         |> .pointScore
                         |> Expect.equal { playerA = DeuceScore, playerB = DeuceScore }
             , test "from Advantage PlayerB, PlayerA wins → back to DeuceScore" <|
                 \_ ->
-                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB, pointWonBy PlayerA ])
+                    -- 40-40 → AdvB → A wins back → DeuceScore.
+                    deriveMatchState defaultConfig
+                        (toFortyForty ++ [ pointWonBy PlayerB, pointWonBy PlayerA ])
                         |> .pointScore
                         |> Expect.equal { playerA = DeuceScore, playerB = DeuceScore }
             ]
         , describe "Standard deuce — multiple deuce cycles"
             [ test "two full deuce cycles then PlayerA wins the game → gameScore 1–0" <|
                 \_ ->
-                    -- toFortyForty → 40-40
-                    -- A wins → DeuceScore (both)
-                    -- A wins → Adv A
-                    -- B wins → DeuceScore (both)
+                    -- toFortyForty → 40-40 (Forty–Forty)
+                    -- A wins → Adv A          (first deuce)
+                    -- B wins → DeuceScore     (back to deuce)
                     -- B wins → Adv B
-                    -- A wins → DeuceScore (both)
-                    -- A wins → Adv A
+                    -- A wins → DeuceScore     (back to deuce)
+                    -- A wins → Adv A          (second deuce)
                     -- A wins → game
                     deriveMatchState defaultConfig
                         (toFortyForty
                             ++ [ pointWonBy PlayerA
-                               , pointWonBy PlayerA
                                , pointWonBy PlayerB
                                , pointWonBy PlayerB
                                , pointWonBy PlayerA
@@ -808,7 +824,7 @@ step5Suite =
                         |> Expect.equal PlayerB
             , test "1 game + deuce game in progress → server is still PlayerB" <|
                 \_ ->
-                    -- enterDeuce plays 7 points leaving the score at DeuceScore
+                    -- enterDeuce plays 7 points leaving the score at Advantage PlayerA
                     -- (game not yet won, so no flip)
                     deriveMatchState defaultConfig
                         (gameWonBy PlayerA ++ enterDeuce)
@@ -1168,21 +1184,21 @@ step7Suite =
                         |> Expect.equal False
             , test "DeuceScore (StandardDeuce) → isBreakPoint = False" <|
                 \_ ->
-                    -- enterDeuce reaches DeuceScore–DeuceScore under StandardDeuce.
-                    -- Advantage has not been established yet, so not a break point.
-                    deriveMatchState defaultConfig enterDeuce
+                    -- 40-40 → AdvA → B wins back → DeuceScore. No advantage held, so
+                    -- not a break point yet.
+                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB ])
                         |> .isBreakPoint
                         |> Expect.equal False
             , test "Advantage receiver (StandardDeuce) → isBreakPoint = True" <|
                 \_ ->
-                    -- After enterDeuce, PlayerB (receiver) wins one more → Advantage PlayerB.
-                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerB ])
+                    -- 40-40 → Advantage PlayerB (receiver). Break point established.
+                    deriveMatchState defaultConfig (toFortyForty ++ [ pointWonBy PlayerB ])
                         |> .isBreakPoint
                         |> Expect.equal True
             , test "Advantage server (StandardDeuce) → isBreakPoint = False" <|
                 \_ ->
-                    -- After enterDeuce, PlayerA (server) wins one more → Advantage PlayerA.
-                    deriveMatchState defaultConfig (enterDeuce ++ [ pointWonBy PlayerA ])
+                    -- 40-40 → Advantage PlayerA (server). Not a break point.
+                    deriveMatchState defaultConfig enterDeuce
                         |> .isBreakPoint
                         |> Expect.equal False
             , test "Forty–Forty (NoAd) → isBreakPoint = True" <|
@@ -1239,21 +1255,17 @@ step7Suite =
                         |> Expect.equal { opportunities = 2, converted = 1 }
             , test "break point at Advantage receiver converted → playerB.opportunities = 1, converted = 1" <|
                 \_ ->
-                    -- Reach DeuceScore, then PlayerB gets Advantage, then PlayerB wins.
+                    -- 40-40 → Advantage PlayerB → PlayerB wins (break converted).
                     deriveMatchState defaultConfig
-                        (enterDeuce
-                            ++ [ pointWonBy PlayerB, pointWonBy PlayerB ]
-                        )
+                        (toFortyForty ++ [ pointWonBy PlayerB, pointWonBy PlayerB ])
                         |> .breakPoints
                         |> .playerB
                         |> Expect.equal { opportunities = 1, converted = 1 }
             , test "break point at Advantage receiver saved (back to deuce) → opportunities = 1, converted = 0" <|
                 \_ ->
-                    -- PlayerB gets Advantage, then PlayerA saves → back to DeuceScore.
+                    -- 40-40 → Advantage PlayerB → PlayerA saves → back to DeuceScore.
                     deriveMatchState defaultConfig
-                        (enterDeuce
-                            ++ [ pointWonBy PlayerB, pointWonBy PlayerA ]
-                        )
+                        (toFortyForty ++ [ pointWonBy PlayerB, pointWonBy PlayerA ])
                         |> .breakPoints
                         |> .playerB
                         |> Expect.equal { opportunities = 1, converted = 0 }

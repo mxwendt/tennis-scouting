@@ -164,7 +164,13 @@ applyPointToGame deuceFormat winner scores =
                 Forty ->
                     case deuceFormat of
                         StandardDeuce ->
-                            GameContinues { playerA = DeuceScore, playerB = DeuceScore }
+                            -- First deuce: grant Advantage immediately rather than
+                            -- passing through an intermediate DeuceScore state.
+                            GameContinues
+                                (setScore winner
+                                    (Advantage winner)
+                                    { playerA = DeuceScore, playerB = DeuceScore }
+                                )
 
                         NoAd ->
                             GameWonBy winner
