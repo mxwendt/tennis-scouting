@@ -6,7 +6,8 @@
     "build:elm": "elm make src/Main.elm --output=dist/main.js",
     "build:elm:optimize": "elm make src/Main.elm --optimize --output=dist/main.js",
     "build:tailwind": "tailwindcss -i ./src/main.css -o ./dist/main.css",
-    "dev": "npm run dev:tailwind & npm run dev:http-server",
+    "dev": "npm run dev:elm & npm run dev:tailwind & npm run dev:http-server",
+    "dev:elm": "elm-watch hot",
     "dev:tailwind": "tailwindcss -i ./src/main.css -o ./dist/main.css --watch",
     "dev:http-server": "http-server .",
     "dist": "npm run build:elm:optimize && npm run build:tailwind",
@@ -23,7 +24,11 @@
     "elm-format": "0.8.8",
     "elm-review": "2.13.5",
     "elm-test": "0.19.1-revision17",
+    "elm-watch": "1.2.6",
     "http-server": "14.1.1",
     "tailwindcss": "4.2.2"
+  },
+  "volta": {
+    "node": "24.14.1"
   }
 }
