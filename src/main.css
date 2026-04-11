@@ -1,1 +1,16 @@
 @import "tailwindcss";
+@source "./**/*.elm";
+
+@layer base {
+    /* Make the date picker icon visible on dark backgrounds */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(0.7);
+        cursor: pointer;
+    }
+
+    /* Remove default button focus outline in favour of custom styles */
+    button:focus-visible {
+        outline: 2px solid var(--color-amber-400);
+        outline-offset: 2px;
+    }
+}

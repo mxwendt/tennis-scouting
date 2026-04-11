@@ -1,7 +1,7 @@
 module MatchSetup exposing (Event(..), Model, Msg, init, update, view)
 
 import Html exposing (Html, button, div, h1, input, text)
-import Html.Attributes exposing (disabled, placeholder, style, type_, value)
+import Html.Attributes exposing (class, disabled, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Match exposing (DeuceFormat(..), MatchConfig, MatchFormat(..), MatchMetadata, Player(..), SetFormat(..), Surface(..), TiebreakFormat(..))
 
@@ -146,13 +146,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div
-        [ style "min-height" "100vh"
-        , style "background" "#111827"
-        , style "color" "#F9FAFB"
-        , style "font-family" "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        , style "max-width" "480px"
-        , style "margin" "0 auto"
-        ]
+        [ class "min-h-screen bg-gray-900 text-gray-50 max-w-[480px] mx-auto" ]
         [ viewHeader
         , viewContent model
         ]
@@ -161,31 +155,13 @@ view model =
 viewHeader : Html Msg
 viewHeader =
     div
-        [ style "position" "sticky"
-        , style "top" "0"
-        , style "z-index" "10"
-        , style "background" "#111827"
-        , style "border-bottom" "1px solid #374151"
-        , style "display" "flex"
-        , style "align-items" "center"
-        , style "justify-content" "space-between"
-        , style "padding" "16px 20px"
-        ]
+        [ class "sticky top-0 z-10 bg-gray-900 border-b border-gray-700 flex items-center justify-between py-4 px-5" ]
         [ h1
-            [ style "font-size" "17px"
-            , style "font-weight" "600"
-            , style "margin" "0"
-            , style "color" "#F9FAFB"
-            ]
+            [ class "text-[17px] font-semibold m-0 text-gray-50" ]
             [ text "New Match" ]
         , button
             [ onClick CancelForm
-            , style "background" "transparent"
-            , style "border" "none"
-            , style "color" "#9CA3AF"
-            , style "font-size" "15px"
-            , style "cursor" "pointer"
-            , style "padding" "4px 0"
+            , class "bg-transparent border-0 text-gray-400 text-[15px] cursor-pointer py-1 px-0"
             ]
             [ text "Cancel" ]
         ]
@@ -194,7 +170,7 @@ viewHeader =
 viewContent : Model -> Html Msg
 viewContent model =
     div
-        [ style "padding" "16px 16px 40px" ]
+        [ class "px-4 pt-4 pb-10" ]
         [ viewPlayersSection model
         , viewInitialServerSection model
         , viewMatchFormatSection model
@@ -211,55 +187,30 @@ viewPlayersSection : Model -> Html Msg
 viewPlayersSection model =
     viewCard "Players"
         [ div
-            [ style "display" "flex"
-            , style "flex-direction" "column"
-            , style "gap" "10px"
-            ]
+            [ class "flex flex-col gap-[10px]" ]
             [ div []
                 [ div
-                    [ style "font-size" "11px"
-                    , style "color" "#6B7280"
-                    , style "margin-bottom" "6px"
-                    ]
+                    [ class "text-[11px] text-gray-500 mb-[6px]" ]
                     [ text "Player A — being scouted" ]
                 , input
                     [ type_ "text"
                     , placeholder "Name"
                     , value model.playerAName
                     , onInput PlayerANameChanged
-                    , style "background" "#374151"
-                    , style "border" "none"
-                    , style "border-radius" "8px"
-                    , style "color" "#F9FAFB"
-                    , style "font-size" "15px"
-                    , style "padding" "11px 14px"
-                    , style "width" "100%"
-                    , style "box-sizing" "border-box"
-                    , style "outline" "none"
+                    , class "bg-gray-700 border-0 rounded-lg text-gray-50 text-[15px] py-[11px] px-[14px] w-full box-border outline-none"
                     ]
                     []
                 ]
             , div []
                 [ div
-                    [ style "font-size" "11px"
-                    , style "color" "#6B7280"
-                    , style "margin-bottom" "6px"
-                    ]
+                    [ class "text-[11px] text-gray-500 mb-[6px]" ]
                     [ text "Player B — opponent" ]
                 , input
                     [ type_ "text"
                     , placeholder "Name"
                     , value model.playerBName
                     , onInput PlayerBNameChanged
-                    , style "background" "#374151"
-                    , style "border" "none"
-                    , style "border-radius" "8px"
-                    , style "color" "#F9FAFB"
-                    , style "font-size" "15px"
-                    , style "padding" "11px 14px"
-                    , style "width" "100%"
-                    , style "box-sizing" "border-box"
-                    , style "outline" "none"
+                    , class "bg-gray-700 border-0 rounded-lg text-gray-50 text-[15px] py-[11px] px-[14px] w-full box-border outline-none"
                     ]
                     []
                 ]
@@ -285,7 +236,7 @@ viewInitialServerSection model =
                 model.playerBName
     in
     viewCard "Initial Server"
-        [ div [ style "display" "flex", style "gap" "8px" ]
+        [ div [ class "flex gap-2" ]
             [ viewSegmentButton playerALabel (model.initialServer == Just PlayerA) (InitialServerSelected PlayerA)
             , viewSegmentButton playerBLabel (model.initialServer == Just PlayerB) (InitialServerSelected PlayerB)
             ]
@@ -295,7 +246,7 @@ viewInitialServerSection model =
 viewMatchFormatSection : Model -> Html Msg
 viewMatchFormatSection model =
     viewCard "Match Format"
-        [ div [ style "display" "flex", style "gap" "8px" ]
+        [ div [ class "flex gap-2" ]
             [ viewSegmentButton "Best of 3" (model.matchFormat == BestOfThree) (MatchFormatSelected BestOfThree)
             , viewSegmentButton "Best of 5" (model.matchFormat == BestOfFive) (MatchFormatSelected BestOfFive)
             ]
@@ -305,7 +256,7 @@ viewMatchFormatSection model =
 viewSetFormatSection : Model -> Html Msg
 viewSetFormatSection model =
     viewCard "Set Format"
-        [ div [ style "display" "flex", style "gap" "8px" ]
+        [ div [ class "flex gap-2" ]
             [ viewSegmentButton "Standard" (model.setFormat == StandardSet) (SetFormatSelected StandardSet)
             , viewSegmentButton "Pro Set" (model.setFormat == ProSet) (SetFormatSelected ProSet)
             ]
@@ -316,12 +267,7 @@ viewTiebreakFormatSection : Html Msg
 viewTiebreakFormatSection =
     viewCard "Tiebreak Format"
         [ div
-            [ style "background" "#374151"
-            , style "border-radius" "8px"
-            , style "padding" "11px 14px"
-            , style "font-size" "14px"
-            , style "color" "#9CA3AF"
-            ]
+            [ class "bg-gray-700 rounded-lg py-[11px] px-[14px] text-sm text-gray-400" ]
             [ text "Standard + match tiebreak" ]
         ]
 
@@ -329,7 +275,7 @@ viewTiebreakFormatSection =
 viewDeuceFormatSection : Model -> Html Msg
 viewDeuceFormatSection model =
     viewCard "Deuce Format"
-        [ div [ style "display" "flex", style "gap" "8px" ]
+        [ div [ class "flex gap-2" ]
             [ viewSegmentButton "Standard" (model.deuceFormat == StandardDeuce) (DeuceFormatSelected StandardDeuce)
             , viewSegmentButton "No-Ad" (model.deuceFormat == NoAd) (DeuceFormatSelected NoAd)
             ]
@@ -340,20 +286,14 @@ viewSurfaceSection : Model -> Html Msg
 viewSurfaceSection model =
     viewCard "Surface"
         [ div
-            [ style "display" "grid"
-            , style "grid-template-columns" "1fr 1fr"
-            , style "gap" "8px"
-            ]
+            [ class "grid grid-cols-2 gap-2" ]
             [ viewSurfaceButton "Hard" Hard model.surface
             , viewSurfaceButton "Clay" Clay model.surface
             , viewSurfaceButton "Grass" Grass model.surface
             , viewSurfaceButton "Carpet" Carpet model.surface
             ]
         , div
-            [ style "margin-top" "8px"
-            , style "font-size" "11px"
-            , style "color" "#6B7280"
-            ]
+            [ class "mt-2 text-[11px] text-gray-500" ]
             [ text "Optional — for context only" ]
         ]
 
@@ -365,15 +305,7 @@ viewDateSection model =
             [ type_ "date"
             , value model.date
             , onInput DateChanged
-            , style "background" "#374151"
-            , style "border" "none"
-            , style "border-radius" "8px"
-            , style "color" "#F9FAFB"
-            , style "font-size" "15px"
-            , style "padding" "11px 14px"
-            , style "width" "100%"
-            , style "box-sizing" "border-box"
-            , style "outline" "none"
+            , class "bg-gray-700 border-0 rounded-lg text-gray-50 text-[15px] py-[11px] px-[14px] w-full box-border outline-none"
             ]
             []
         ]
@@ -385,36 +317,16 @@ viewSubmitButton model =
         valid =
             isFormValid model
     in
-    div [ style "margin-top" "8px" ]
+    div [ class "mt-2" ]
         [ button
             [ onClick SubmitForm
             , disabled (not valid)
-            , style "background"
+            , class
                 (if valid then
-                    "#FBBF24"
+                    "bg-amber-400 text-gray-900 border-0 rounded-[14px] p-[18px] text-base font-semibold w-full cursor-pointer"
 
                  else
-                    "#374151"
-                )
-            , style "color"
-                (if valid then
-                    "#111827"
-
-                 else
-                    "#6B7280"
-                )
-            , style "border" "none"
-            , style "border-radius" "14px"
-            , style "padding" "18px"
-            , style "font-size" "16px"
-            , style "font-weight" "600"
-            , style "width" "100%"
-            , style "cursor"
-                (if valid then
-                    "pointer"
-
-                 else
-                    "default"
+                    "bg-gray-700 text-gray-500 border-0 rounded-[14px] p-[18px] text-base font-semibold w-full cursor-default"
                 )
             ]
             [ text "Start Match" ]
@@ -428,19 +340,9 @@ viewSubmitButton model =
 viewCard : String -> List (Html Msg) -> Html Msg
 viewCard label children =
     div
-        [ style "background" "#1F2937"
-        , style "border-radius" "12px"
-        , style "padding" "12px 14px"
-        , style "margin-bottom" "10px"
-        ]
+        [ class "bg-gray-800 rounded-xl py-3 px-[14px] mb-[10px]" ]
         (div
-            [ style "font-size" "11px"
-            , style "color" "#6B7280"
-            , style "letter-spacing" "0.05em"
-            , style "text-transform" "uppercase"
-            , style "font-weight" "500"
-            , style "margin-bottom" "10px"
-            ]
+            [ class "text-[11px] text-gray-500 tracking-[0.05em] uppercase font-medium mb-[10px]" ]
             [ text label ]
             :: children
         )
@@ -450,28 +352,13 @@ viewSegmentButton : String -> Bool -> Msg -> Html Msg
 viewSegmentButton label isSelected msg =
     button
         [ onClick msg
-        , style "background"
+        , class
             (if isSelected then
-                "#FBBF24"
+                "bg-amber-400 text-gray-900 border-0 rounded-lg py-[11px] px-4 text-[13px] font-medium cursor-pointer flex-1 text-center"
 
              else
-                "#374151"
+                "bg-gray-700 text-gray-300 border-0 rounded-lg py-[11px] px-4 text-[13px] font-medium cursor-pointer flex-1 text-center"
             )
-        , style "color"
-            (if isSelected then
-                "#111827"
-
-             else
-                "#D1D5DB"
-            )
-        , style "border" "none"
-        , style "border-radius" "8px"
-        , style "padding" "11px 16px"
-        , style "font-size" "13px"
-        , style "font-weight" "500"
-        , style "cursor" "pointer"
-        , style "flex" "1"
-        , style "text-align" "center"
         ]
         [ text label ]
 
@@ -484,25 +371,12 @@ viewSurfaceButton label surface selectedSurface =
     in
     button
         [ onClick (SurfaceToggled surface)
-        , style "background"
+        , class
             (if isSelected then
-                "#FBBF24"
+                "bg-amber-400 text-gray-900 border-0 rounded-lg py-[11px] px-4 text-[13px] font-medium cursor-pointer"
 
              else
-                "#374151"
+                "bg-gray-700 text-gray-300 border-0 rounded-lg py-[11px] px-4 text-[13px] font-medium cursor-pointer"
             )
-        , style "color"
-            (if isSelected then
-                "#111827"
-
-             else
-                "#D1D5DB"
-            )
-        , style "border" "none"
-        , style "border-radius" "8px"
-        , style "padding" "11px 16px"
-        , style "font-size" "13px"
-        , style "font-weight" "500"
-        , style "cursor" "pointer"
         ]
         [ text label ]

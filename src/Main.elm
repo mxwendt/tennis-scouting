@@ -2,7 +2,7 @@ port module Main exposing (main)
 
 import Browser
 import Html exposing (Html, button, div, h1, p, text)
-import Html.Attributes exposing (style)
+import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -194,35 +194,15 @@ view model =
 viewMatchList : Model -> Html Msg
 viewMatchList model =
     div
-        [ style "min-height" "100vh"
-        , style "background" "#111827"
-        , style "color" "#F9FAFB"
-        , style "font-family" "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        , style "max-width" "480px"
-        , style "margin" "0 auto"
-        ]
+        [ class "min-h-screen bg-gray-900 text-gray-50 max-w-[480px] mx-auto" ]
         [ div
-            [ style "display" "flex"
-            , style "align-items" "center"
-            , style "justify-content" "space-between"
-            , style "padding" "20px 20px 16px"
-            ]
+            [ class "flex items-center justify-between px-5 pt-5 pb-4" ]
             [ h1
-                [ style "font-size" "22px"
-                , style "font-weight" "700"
-                , style "margin" "0"
-                ]
+                [ class "text-[22px] font-bold m-0" ]
                 [ text "Matches" ]
             , button
                 [ onClick OpenMatchSetup
-                , style "background" "#FBBF24"
-                , style "color" "#111827"
-                , style "border" "none"
-                , style "border-radius" "10px"
-                , style "padding" "10px 18px"
-                , style "font-size" "14px"
-                , style "font-weight" "600"
-                , style "cursor" "pointer"
+                , class "bg-amber-400 text-gray-900 border-0 rounded-[10px] py-[10px] px-[18px] text-sm font-semibold cursor-pointer"
                 ]
                 [ text "New Match" ]
             ]
@@ -230,7 +210,7 @@ viewMatchList model =
             viewEmptyState
 
           else
-            div [ style "padding" "0 16px" ]
+            div [ class "px-4" ]
                 (List.map viewMatchRow (List.reverse model.matches))
         ]
 
@@ -238,29 +218,15 @@ viewMatchList model =
 viewEmptyState : Html Msg
 viewEmptyState =
     div
-        [ style "display" "flex"
-        , style "flex-direction" "column"
-        , style "align-items" "center"
-        , style "justify-content" "center"
-        , style "padding" "80px 32px"
-        , style "text-align" "center"
-        ]
+        [ class "flex flex-col items-center justify-center py-20 px-8 text-center" ]
         [ div
-            [ style "font-size" "40px"
-            , style "margin-bottom" "16px"
-            ]
+            [ class "text-[40px] mb-4" ]
             [ text "🎾" ]
         , p
-            [ style "font-size" "16px"
-            , style "color" "#9CA3AF"
-            , style "margin" "0 0 8px"
-            ]
+            [ class "text-base text-gray-400 m-0 mb-2" ]
             [ text "No matches yet" ]
         , p
-            [ style "font-size" "14px"
-            , style "color" "#6B7280"
-            , style "margin" "0"
-            ]
+            [ class "text-sm text-gray-500 m-0" ]
             [ text "Tap New Match to start tracking" ]
         ]
 
@@ -269,38 +235,18 @@ viewMatchRow : Match -> Html Msg
 viewMatchRow match =
     button
         [ onClick (OpenMatch match)
-        , style "display" "flex"
-        , style "align-items" "center"
-        , style "justify-content" "space-between"
-        , style "width" "100%"
-        , style "background" "#1F2937"
-        , style "border" "none"
-        , style "border-radius" "12px"
-        , style "padding" "14px 16px"
-        , style "margin-bottom" "8px"
-        , style "cursor" "pointer"
-        , style "text-align" "left"
-        , style "color" "#F9FAFB"
-        , style "box-sizing" "border-box"
+        , class "flex items-center justify-between w-full bg-gray-800 border-0 rounded-xl py-[14px] px-4 mb-2 cursor-pointer text-left text-gray-50 box-border"
         ]
         [ div []
             [ div
-                [ style "font-size" "15px"
-                , style "font-weight" "600"
-                , style "margin-bottom" "4px"
-                ]
+                [ class "text-[15px] font-semibold mb-1" ]
                 [ text (match.metadata.playerAName ++ " vs " ++ match.metadata.playerBName) ]
             , div
-                [ style "font-size" "12px"
-                , style "color" "#9CA3AF"
-                ]
+                [ class "text-xs text-gray-400" ]
                 [ text match.metadata.date ]
             ]
         , div
-            [ style "font-size" "11px"
-            , style "color" "#FBBF24"
-            , style "font-weight" "500"
-            ]
+            [ class "text-[11px] text-amber-400 font-medium" ]
             [ text "In Progress" ]
         ]
 
@@ -312,56 +258,28 @@ viewMatchRow match =
 viewLiveTracking : Match -> Html Msg
 viewLiveTracking match =
     div
-        [ style "min-height" "100vh"
-        , style "background" "#111827"
-        , style "color" "#F9FAFB"
-        , style "font-family" "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        , style "max-width" "480px"
-        , style "margin" "0 auto"
-        ]
+        [ class "min-h-screen bg-gray-900 text-gray-50 max-w-[480px] mx-auto" ]
         [ div
-            [ style "display" "flex"
-            , style "align-items" "center"
-            , style "padding" "16px 20px"
-            , style "border-bottom" "1px solid #374151"
-            ]
+            [ class "flex items-center py-4 px-5 border-b border-gray-700" ]
             [ button
                 [ onClick NavigateToMatchList
-                , style "background" "transparent"
-                , style "border" "none"
-                , style "color" "#9CA3AF"
-                , style "font-size" "15px"
-                , style "cursor" "pointer"
-                , style "padding" "0"
+                , class "bg-transparent border-0 text-gray-400 text-[15px] cursor-pointer p-0"
                 ]
                 [ text "← Matches" ]
             ]
         , div
-            [ style "padding" "24px 20px" ]
+            [ class "py-6 px-5" ]
             [ div
-                [ style "text-align" "center"
-                , style "margin-bottom" "32px"
-                ]
+                [ class "text-center mb-8" ]
                 [ div
-                    [ style "font-size" "22px"
-                    , style "font-weight" "700"
-                    , style "margin-bottom" "6px"
-                    ]
+                    [ class "text-[22px] font-bold mb-[6px]" ]
                     [ text (match.metadata.playerAName ++ " vs " ++ match.metadata.playerBName) ]
                 , div
-                    [ style "font-size" "13px"
-                    , style "color" "#9CA3AF"
-                    ]
+                    [ class "text-[13px] text-gray-400" ]
                     [ text match.metadata.date ]
                 ]
             , div
-                [ style "background" "#1F2937"
-                , style "border-radius" "12px"
-                , style "padding" "20px"
-                , style "text-align" "center"
-                , style "color" "#6B7280"
-                , style "font-size" "14px"
-                ]
+                [ class "bg-gray-800 rounded-xl p-5 text-center text-gray-500 text-sm" ]
                 [ text "Live tracking coming soon" ]
             ]
         ]
