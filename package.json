@@ -2,8 +2,14 @@
   "name": "tennis-scouting",
   "private": true,
   "scripts": {
-    "build": "elm make src/Main.elm --output=dist/main.js",
-    "build:optimize": "elm make src/Main.elm --optimize --output=dist/main.js",
+    "build": "npm run build:elm && npm run build:tailwind",
+    "build:elm": "elm make src/Main.elm --output=dist/main.js",
+    "build:elm:optimize": "elm make src/Main.elm --optimize --output=dist/main.js",
+    "build:tailwind": "tailwindcss -i ./src/main.css -o ./dist/main.css",
+    "dev": "npm run dev:tailwind & npm run dev:http-server",
+    "dev:tailwind": "tailwindcss -i ./src/main.css -o ./src/output.css --watch",
+    "dev:http-server": "http-server .",
+    "dist": "npm run build:elm:optimize && npm run build:tailwind",
     "test": "elm-test",
     "test:watch": "elm-test --watch",
     "format": "elm-format src/ --yes",
@@ -12,9 +18,12 @@
     "review:fix": "elm-review --fix"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "4.2.2",
     "elm": "0.19.1-6",
     "elm-format": "0.8.8",
     "elm-review": "2.13.5",
-    "elm-test": "0.19.1-revision17"
+    "elm-test": "0.19.1-revision17",
+    "http-server": "14.1.1",
+    "tailwindcss": "4.2.2"
   }
 }

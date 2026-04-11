@@ -12,6 +12,8 @@ enforced Model-Update-View architecture (The Elm Architecture, TEA).
 
 For styling use the **Tailwind CSS** framework.
 
+Always pin **NPM** dependencies to exact versions.
+
 # Conventions
 
 - Use a pure functional paradigm, strong static types, no side-effects in business logic.
