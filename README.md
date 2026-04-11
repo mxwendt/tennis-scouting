@@ -12,11 +12,7 @@ A tennis match scouting app built with [Elm](https://elm-lang.org) and [Tailwind
 
 ## Build
 
-1. Run `npm run build`
-
-For an optimized production build:
-
-1. Run `npm run dist`
+1. Run `npm run build` or run `npm run dist` for an optimized production build
 
 Outputs are written to `dist/`.
 
