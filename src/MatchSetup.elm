@@ -157,13 +157,13 @@ viewHeader =
     div
         [ class "sticky top-0 z-10 bg-gray-900 border-b border-gray-700 flex items-center justify-between py-4 px-5" ]
         [ h1
-            [ class "text-[17px] font-semibold m-0 text-gray-50" ]
+            [ class "text-xl font-bold m-0" ]
             [ text "New Match" ]
         , button
             [ onClick CancelForm
-            , class "bg-transparent border-0 text-gray-400 text-[15px] cursor-pointer py-1 px-0"
+            , class "bg-transparent border-0 rounded-md text-gray-400 text-sm font-semibold cursor-pointer py-2 px-4"
             ]
-            [ text "Cancel" ]
+            [ text "Cancel " ]
         ]
 
 

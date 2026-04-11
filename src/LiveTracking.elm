@@ -3,7 +3,7 @@ module LiveTracking exposing (Event(..), Model, Msg(..), PointEntry(..), init, u
 import Html exposing (Html, button, div, span, text)
 import Html.Attributes exposing (class, disabled)
 import Html.Events exposing (onClick)
-import Match exposing (Match, Player(..), ServeOutcome(..), ServePhase(..))
+import Match exposing (Match, MatchFormat(..), Player(..), ServeOutcome(..), ServePhase(..))
 import ScoreEngine exposing (GameScore(..), MatchState, deriveMatchState)
 
 
@@ -284,7 +284,7 @@ view model =
         [ viewHeader
         , div [ class "flex-1 overflow-y-auto" ]
             [ viewScoreboard matchState model.match
-            , div [ class "px-4 pb-8 flex flex-col gap-3" ]
+            , div [ class "px-4 pb-8 flex flex-col gap-2" ]
                 [ viewStep1Collapsed matchState model.match
                 , viewStep2 model
                 , viewStep3 model
@@ -309,21 +309,29 @@ viewHeader =
 
 viewScoreboard : MatchState -> Match -> Html Msg
 viewScoreboard matchState match =
-    div [ class "mx-4 mt-4 mb-1 bg-gray-800 rounded-xl p-4" ]
+    div [ class "mx-4 mt-2 mb-4 bg-gray-900 rounded-xl py-4" ]
         [ div [ class "flex flex-col gap-[10px]" ]
-            [ viewScoreRow PlayerA match.metadata.playerAName matchState
-            , viewScoreRow PlayerB match.metadata.playerBName matchState
+            [ viewScoreRow PlayerA match.metadata.playerAName match.config.matchFormat matchState
+            , viewScoreRow PlayerB match.metadata.playerBName match.config.matchFormat matchState
             ]
         ]
 
 
-viewScoreRow : Player -> String -> MatchState -> Html Msg
-viewScoreRow player name matchState =
+viewScoreRow : Player -> String -> MatchFormat -> MatchState -> Html Msg
+viewScoreRow player name matchFormat matchState =
     let
         isServing =
             matchState.currentServer == player
 
-        setScoreValues =
+        totalSets =
+            case matchFormat of
+                BestOfThree ->
+                    3
+
+                BestOfFive ->
+                    5
+
+        completedSetValues =
             List.map
                 (\s ->
                     case player of
@@ -334,6 +342,9 @@ viewScoreRow player name matchState =
                             s.playerB
                 )
                 matchState.setScores
+
+        futureSetsCount =
+            totalSets - 1 - List.length completedSetValues
 
         currentGames =
             case player of
@@ -372,10 +383,15 @@ viewScoreRow player name matchState =
                     div [ class "text-[15px] text-gray-400 w-4 text-center" ]
                         [ text (String.fromInt s) ]
                 )
-                setScoreValues
+                completedSetValues
                 ++ [ div [ class "text-[15px] w-4 text-center" ]
                         [ text (String.fromInt currentGames) ]
-                   , div [ class "text-[15px] w-8 text-right font-semibold" ]
+                   ]
+                ++ List.repeat futureSetsCount
+                    (div [ class "text-[15px] text-gray-400 w-4 text-center" ]
+                        [ text "0" ]
+                    )
+                ++ [ div [ class "text-[15px] w-8 text-right font-semibold" ]
                         [ text pointLabel ]
                    ]
             )
@@ -428,7 +444,7 @@ viewStep1Collapsed matchState match =
                 PlayerB ->
                     match.metadata.playerBName
     in
-    div [ class "bg-gray-800 rounded-xl px-[14px] py-3" ]
+    div [ class "bg-gray-800 rounded-xl p-4" ]
         [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-[6px]" ]
             [ text "Who is serving?" ]
         , div [ class "text-[15px] font-medium" ]
@@ -451,7 +467,7 @@ viewStep2 model =
 
 viewStep2Active : ServePhase -> Html Msg
 viewStep2Active phase =
-    div [ class "bg-gray-800 rounded-xl px-[14px] py-3" ]
+    div [ class "bg-gray-800 rounded-xl px-4 py-3" ]
         [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-3" ]
             [ text "Serve result" ]
         , div [ class "grid grid-cols-2 gap-2" ]
@@ -522,7 +538,7 @@ viewDoubleFaultButton phase =
 
 viewStep2Collapsed : String -> Html Msg
 viewStep2Collapsed outcomeLabel =
-    div [ class "bg-gray-800 rounded-xl px-[14px] py-3 flex items-center justify-between" ]
+    div [ class "bg-gray-800 rounded-xl px-4 py-3 flex items-center justify-between" ]
         [ div []
             [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-[6px]" ]
                 [ text "Serve result" ]
@@ -564,7 +580,7 @@ viewStep3 model =
 
 viewStep3Active : Match -> Html Msg
 viewStep3Active match =
-    div [ class "bg-gray-800 rounded-xl px-[14px] py-3" ]
+    div [ class "bg-gray-800 rounded-xl p-4" ]
         [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-3" ]
             [ text "Who won the point?" ]
         , div [ class "flex gap-2" ]
@@ -597,10 +613,10 @@ viewStep4 model =
 
 viewStep4Active : Html Msg
 viewStep4Active =
-    div [ class "bg-gray-800 rounded-xl px-[14px] py-3" ]
+    div [ class "bg-gray-800 rounded-xl p-4" ]
         [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-3" ]
             [ text "Rally result" ]
-        , div [ class "bg-gray-700 rounded-lg px-[14px] py-[11px] text-[13px] text-gray-400 mb-3" ]
+        , div [ class "bg-gray-700 rounded-lg px-4 py-[11px] text-[13px] text-gray-400 mb-3" ]
             [ text "Tagging coming soon" ]
         , button
             [ onClick SavePointTapped
@@ -612,7 +628,7 @@ viewStep4Active =
 
 viewStepLocked : String -> Html Msg
 viewStepLocked label =
-    div [ class "bg-gray-800 rounded-xl px-[14px] py-3 opacity-40" ]
+    div [ class "bg-gray-800 rounded-xl p-4 opacity-40" ]
         [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium" ]
             [ text label ]
         ]
@@ -625,7 +641,7 @@ viewStepHidden =
 
 viewStepCollapsed : String -> String -> Html Msg
 viewStepCollapsed label summary =
-    div [ class "bg-gray-800 rounded-xl px-[14px] py-3" ]
+    div [ class "bg-gray-800 rounded-xl p-4" ]
         [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-[6px]" ]
             [ text label ]
         , div [ class "text-[15px] font-medium" ]
