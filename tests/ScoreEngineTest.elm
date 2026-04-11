@@ -6,6 +6,7 @@ import ScoreEngine exposing (..)
 import Test exposing (Test, describe, test)
 
 
+
 -- HELPERS
 
 
@@ -14,6 +15,7 @@ defaultConfig =
     { initialServer = PlayerA
     , matchFormat = BestOfThree
     , setFormat = StandardSet
+    , tiebreakFormat = StandardPlusMatchTiebreak
     , deuceFormat = StandardDeuce
     }
 
@@ -101,6 +103,7 @@ sixSixPoints =
 eightEightPoints : List Point
 eightEightPoints =
     List.concat (List.repeat 8 (gameWonBy PlayerA ++ gameWonBy PlayerB))
+
 
 
 -- SUITE
@@ -1239,8 +1242,7 @@ step7Suite =
                     -- Reach DeuceScore, then PlayerB gets Advantage, then PlayerB wins.
                     deriveMatchState defaultConfig
                         (enterDeuce
-                            ++ [ pointWonBy PlayerB ]
-                            ++ [ pointWonBy PlayerB ]
+                            ++ [ pointWonBy PlayerB, pointWonBy PlayerB ]
                         )
                         |> .breakPoints
                         |> .playerB
@@ -1250,8 +1252,7 @@ step7Suite =
                     -- PlayerB gets Advantage, then PlayerA saves → back to DeuceScore.
                     deriveMatchState defaultConfig
                         (enterDeuce
-                            ++ [ pointWonBy PlayerB ]
-                            ++ [ pointWonBy PlayerA ]
+                            ++ [ pointWonBy PlayerB, pointWonBy PlayerA ]
                         )
                         |> .breakPoints
                         |> .playerB

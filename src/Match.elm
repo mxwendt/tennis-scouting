@@ -1,12 +1,16 @@
 module Match exposing
     ( DeuceFormat(..)
+    , Match
     , MatchConfig
     , MatchFormat(..)
+    , MatchMetadata
     , Player(..)
     , Point
     , RallyTag(..)
     , ServeOutcome(..)
     , SetFormat(..)
+    , Surface(..)
+    , TiebreakFormat(..)
     )
 
 -- PLAYER
@@ -31,16 +35,58 @@ type SetFormat
     | ProSet -- first to 8, win by 2
 
 
+{-| The tiebreak format for the match.
+
+  - StandardPlusMatchTiebreak: standard tiebreak (first to 7) in all non-final
+    sets; match tiebreak (first to 10) in the final set.
+
+-}
+type TiebreakFormat
+    = StandardPlusMatchTiebreak
+
+
 type DeuceFormat
     = StandardDeuce -- advantage scoring
-    | NoAd -- single point at deuce
+    | NoAd -- single point at deuce wins the game
 
 
 type alias MatchConfig =
     { initialServer : Player
     , matchFormat : MatchFormat
     , setFormat : SetFormat
+    , tiebreakFormat : TiebreakFormat
     , deuceFormat : DeuceFormat
+    }
+
+
+
+-- MATCH METADATA
+
+
+type Surface
+    = Hard
+    | Clay
+    | Grass
+    | Carpet
+
+
+type alias MatchMetadata =
+    { playerAName : String
+    , playerBName : String
+    , surface : Maybe Surface
+    , date : String
+    }
+
+
+
+-- MATCH
+
+
+type alias Match =
+    { id : Int
+    , config : MatchConfig
+    , metadata : MatchMetadata
+    , points : List Point
     }
 
 
