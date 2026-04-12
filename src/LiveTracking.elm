@@ -21,6 +21,8 @@ type alias Model =
     { match : Match
     , pointEntry : PointEntry
     , trackingStarted : Bool
+    , step1Expanded : Bool
+    , serverOverride : Maybe Player
     }
 
 
@@ -29,6 +31,8 @@ init match =
     { match = match
     , pointEntry = ServeResultEntry FirstServe
     , trackingStarted = False
+    , step1Expanded = False
+    , serverOverride = Nothing
     }
 
 
@@ -58,6 +62,8 @@ type Msg
     | RestartTapped
     | ChangeServeResultTapped
     | BackTapped
+    | Step1Tapped
+    | ServerOverrideTapped Player
 
 
 
@@ -169,7 +175,7 @@ update msg model =
                             model.match
 
                         point =
-                            { server = matchState.currentServer
+                            { server = Maybe.withDefault matchState.currentServer model.serverOverride
                             , outcome = outcome
                             }
 
@@ -180,6 +186,8 @@ update msg model =
                         | match = newMatch
                         , pointEntry = ServeResultEntry FirstServe
                         , trackingStarted = False
+                        , serverOverride = Nothing
+                        , step1Expanded = False
                       }
                     , MatchUpdated newMatch
                     )
@@ -190,7 +198,18 @@ update msg model =
         UndoTapped ->
             case model.pointEntry of
                 ServeResultEntry FirstServe ->
-                    ( model, NoEvent )
+                    case model.serverOverride of
+                        Just _ ->
+                            ( { model
+                                | serverOverride = Nothing
+                                , trackingStarted = False
+                                , step1Expanded = False
+                              }
+                            , NoEvent
+                            )
+
+                        Nothing ->
+                            ( model, NoEvent )
 
                 ServeResultEntry SecondServe ->
                     ( { model
@@ -214,6 +233,8 @@ update msg model =
             ( { model
                 | pointEntry = ServeResultEntry FirstServe
                 , trackingStarted = False
+                , serverOverride = Nothing
+                , step1Expanded = False
               }
             , NoEvent
             )
@@ -232,6 +253,29 @@ update msg model =
                     ( { model | pointEntry = ServeResultEntry (servePhaseOf outcome) }
                     , NoEvent
                     )
+
+        Step1Tapped ->
+            ( { model | step1Expanded = not model.step1Expanded }, NoEvent )
+
+        ServerOverrideTapped player ->
+            let
+                matchState =
+                    deriveMatchState model.match.config model.match.points
+
+                effectiveServer =
+                    Maybe.withDefault matchState.currentServer model.serverOverride
+            in
+            if player == effectiveServer then
+                ( { model | step1Expanded = False }, NoEvent )
+
+            else
+                ( { model
+                    | serverOverride = Just player
+                    , step1Expanded = False
+                    , trackingStarted = True
+                  }
+                , NoEvent
+                )
 
 
 
@@ -279,13 +323,21 @@ view model =
     let
         matchState =
             deriveMatchState model.match.config model.match.points
+
+        effectiveMatchState =
+            case model.serverOverride of
+                Just server ->
+                    { matchState | currentServer = server }
+
+                Nothing ->
+                    matchState
     in
     div [ class "min-h-screen bg-gray-900 text-gray-50 max-w-[480px] mx-auto flex flex-col" ]
         [ viewHeader
         , div [ class "flex-1 overflow-y-auto" ]
-            [ viewScoreboard matchState model.match
+            [ viewScoreboard effectiveMatchState model.match
             , div [ class "px-4 pb-8 flex flex-col gap-2" ]
-                [ viewStep1Collapsed matchState model.match
+                [ viewStep1 model effectiveMatchState
                 , viewStep2 model
                 , viewStep3 model
                 , viewStep4 model
@@ -433,23 +485,78 @@ gameScoreLabel player scores =
                 "–"
 
 
-viewStep1Collapsed : MatchState -> Match -> Html Msg
-viewStep1Collapsed matchState match =
-    let
-        serverName =
-            case matchState.currentServer of
-                PlayerA ->
-                    match.metadata.playerAName
+playerName : Match -> Player -> String
+playerName match player =
+    case player of
+        PlayerA ->
+            match.metadata.playerAName
 
-                PlayerB ->
-                    match.metadata.playerBName
+        PlayerB ->
+            match.metadata.playerBName
+
+
+viewStep1 : Model -> MatchState -> Html Msg
+viewStep1 model matchState =
+    if model.step1Expanded then
+        viewStep1Expanded model.match matchState model.serverOverride
+
+    else
+        viewStep1Collapsed model.match matchState model.serverOverride
+
+
+viewStep1Collapsed : Match -> MatchState -> Maybe Player -> Html Msg
+viewStep1Collapsed match matchState serverOverride =
+    let
+        effectiveServer =
+            Maybe.withDefault matchState.currentServer serverOverride
+    in
+    div
+        [ onClick Step1Tapped
+        , class "bg-gray-800 rounded-xl p-4 flex items-center justify-between cursor-pointer"
+        ]
+        [ div []
+            [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-[6px]" ]
+                [ text "Who is serving?" ]
+            , div [ class "text-[15px] font-medium" ]
+                [ text (playerName match effectiveServer) ]
+            ]
+        , span
+            [ class "text-amber-400 text-[14px] font-medium" ]
+            [ text "Change" ]
+        ]
+
+
+viewStep1Expanded : Match -> MatchState -> Maybe Player -> Html Msg
+viewStep1Expanded match matchState serverOverride =
+    let
+        effectiveServer =
+            Maybe.withDefault matchState.currentServer serverOverride
     in
     div [ class "bg-gray-800 rounded-xl p-4" ]
-        [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-[6px]" ]
+        [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-3" ]
             [ text "Who is serving?" ]
-        , div [ class "text-[15px] font-medium" ]
-            [ text serverName ]
+        , div [ class "flex gap-2" ]
+            [ viewServerButton (playerName match PlayerA) PlayerA effectiveServer
+            , viewServerButton (playerName match PlayerB) PlayerB effectiveServer
+            ]
         ]
+
+
+viewServerButton : String -> Player -> Player -> Html Msg
+viewServerButton name player effectiveServer =
+    let
+        cls =
+            if player == effectiveServer then
+                "flex-1 bg-amber-400 text-gray-900 border-0 rounded-xl py-4 text-[15px] font-semibold cursor-pointer"
+
+            else
+                "flex-1 bg-gray-700 text-gray-50 border-0 rounded-xl py-4 text-[15px] font-semibold cursor-pointer"
+    in
+    button
+        [ onClick (ServerOverrideTapped player)
+        , class cls
+        ]
+        [ text name ]
 
 
 viewStep2 : Model -> Html Msg
