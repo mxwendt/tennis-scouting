@@ -404,6 +404,9 @@ encodeRallyTag tag =
         Winner ->
             Encode.string "Winner"
 
+        UnforcedError ->
+            Encode.string "UnforcedError"
+
 
 encodePlayer : Player -> Encode.Value
 encodePlayer player =
@@ -608,6 +611,9 @@ decodeRallyTag =
                 case s of
                     "Winner" ->
                         Decode.succeed Winner
+
+                    "UnforcedError" ->
+                        Decode.succeed UnforcedError
 
                     _ ->
                         Decode.fail ("Unknown rally tag: " ++ s)

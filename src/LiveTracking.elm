@@ -3,8 +3,8 @@ module LiveTracking exposing (Event(..), Model, Msg(..), PointEntry(..), init, u
 import Html exposing (Html, button, div, span, text)
 import Html.Attributes exposing (class, disabled)
 import Html.Events exposing (onClick)
-import Match exposing (Match, MatchFormat(..), Player(..), ServeOutcome(..), ServePhase(..))
-import ScoreEngine exposing (GameScore(..), MatchState, deriveMatchState)
+import Match exposing (Match, MatchFormat(..), Player(..), RallyTag(..), ServeOutcome(..), ServePhase(..))
+import ScoreEngine exposing (GameScore(..), MatchState, deriveMatchState, otherPlayer)
 
 
 
@@ -57,6 +57,8 @@ type Msg
     | DoubleFaultTapped
     | InRallyTapped
     | RallyWonBy Player
+    | WinnerTagTapped
+    | UnforcedErrorTagTapped
     | SavePointTapped
     | UndoTapped
     | RestartTapped
@@ -164,6 +166,44 @@ update msg model =
                 _ ->
                     ( model, NoEvent )
 
+        WinnerTagTapped ->
+            case model.pointEntry of
+                RallyResultEntry (InRally phase winner tag) ->
+                    let
+                        newTag =
+                            case tag of
+                                Just Winner ->
+                                    Nothing
+
+                                _ ->
+                                    Just Winner
+                    in
+                    ( { model | pointEntry = RallyResultEntry (InRally phase winner newTag) }
+                    , NoEvent
+                    )
+
+                _ ->
+                    ( model, NoEvent )
+
+        UnforcedErrorTagTapped ->
+            case model.pointEntry of
+                RallyResultEntry (InRally phase winner tag) ->
+                    let
+                        newTag =
+                            case tag of
+                                Just UnforcedError ->
+                                    Nothing
+
+                                _ ->
+                                    Just UnforcedError
+                    in
+                    ( { model | pointEntry = RallyResultEntry (InRally phase winner newTag) }
+                    , NoEvent
+                    )
+
+                _ ->
+                    ( model, NoEvent )
+
         SavePointTapped ->
             case model.pointEntry of
                 RallyResultEntry outcome ->
@@ -221,6 +261,11 @@ update msg model =
 
                 WhoWonEntry phase ->
                     ( { model | pointEntry = ServeResultEntry phase }
+                    , NoEvent
+                    )
+
+                RallyResultEntry (InRally phase winner (Just _)) ->
+                    ( { model | pointEntry = RallyResultEntry (InRally phase winner Nothing) }
                     , NoEvent
                     )
 
@@ -714,22 +759,76 @@ viewStep4 model =
         WhoWonEntry _ ->
             viewStepLocked "Rally result"
 
+        RallyResultEntry (InRally _ winner tag) ->
+            viewStep4RallyActive model.match winner tag
+
         RallyResultEntry _ ->
-            viewStep4Active
+            viewStep4ServeActive
 
 
-viewStep4Active : Html Msg
-viewStep4Active =
+viewStep4ServeActive : Html Msg
+viewStep4ServeActive =
     div [ class "bg-gray-800 rounded-xl p-4" ]
         [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-3" ]
             [ text "Rally result" ]
-        , div [ class "bg-gray-700 rounded-lg px-4 py-[11px] text-[13px] text-gray-400 mb-3" ]
-            [ text "Tagging coming soon" ]
         , button
             [ onClick SavePointTapped
             , class "w-full bg-amber-400 text-gray-900 border-0 rounded-xl py-4 text-[15px] font-semibold cursor-pointer"
             ]
             [ text "Save point" ]
+        ]
+
+
+viewStep4RallyActive : Match -> Player -> Maybe RallyTag -> Html Msg
+viewStep4RallyActive match winner maybeTag =
+    let
+        loser =
+            otherPlayer winner
+    in
+    div [ class "bg-gray-800 rounded-xl p-4" ]
+        [ div [ class "text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium mb-3" ]
+            [ text "Rally result" ]
+        , div [ class "flex gap-2 mb-3" ]
+            [ viewTagButton "Winner"
+                ("by " ++ playerName match winner)
+                (maybeTag == Just Winner)
+                WinnerTagTapped
+            , viewTagButton "Unforced error"
+                ("by " ++ playerName match loser)
+                (maybeTag == Just UnforcedError)
+                UnforcedErrorTagTapped
+            ]
+        , button
+            [ onClick SavePointTapped
+            , class "w-full bg-amber-400 text-gray-900 border-0 rounded-xl py-4 text-[15px] font-semibold cursor-pointer"
+            ]
+            [ text "Save point" ]
+        ]
+
+
+viewTagButton : String -> String -> Bool -> Msg -> Html Msg
+viewTagButton label subline isSelected msg =
+    let
+        cls =
+            if isSelected then
+                "flex-1 bg-amber-400 text-gray-900 border-0 rounded-xl py-3 px-3 cursor-pointer text-left"
+
+            else
+                "flex-1 bg-gray-700 text-gray-50 border-0 rounded-xl py-3 px-3 cursor-pointer text-left"
+
+        sublineCls =
+            if isSelected then
+                "text-[12px] text-gray-800 mt-[2px]"
+
+            else
+                "text-[12px] text-gray-400 mt-[2px]"
+    in
+    button
+        [ onClick msg
+        , class cls
+        ]
+        [ div [ class "text-[14px] font-semibold" ] [ text label ]
+        , div [ class sublineCls ] [ text subline ]
         ]
 
 

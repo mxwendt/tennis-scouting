@@ -2,7 +2,7 @@ module LiveTrackingTest exposing (..)
 
 import Expect
 import LiveTracking exposing (..)
-import Match exposing (Match, MatchConfig, MatchFormat(..), MatchMetadata, Player(..), ServeOutcome(..), ServePhase(..), SetFormat(..), TiebreakFormat(..))
+import Match exposing (Match, MatchConfig, MatchFormat(..), MatchMetadata, Player(..), RallyTag(..), ServeOutcome(..), ServePhase(..), SetFormat(..), TiebreakFormat(..))
 import Test exposing (Test, describe, test)
 
 
@@ -363,6 +363,125 @@ suite =
                     Expect.equal
                         [ { server = PlayerA, outcome = InRally FirstServe PlayerB Nothing } ]
                         points
+            ]
+        , describe "Step 4 — Rally result"
+            [ describe "Serve path"
+                [ test "Step 4 on Ace path holds no tag" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsg AceTapped
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (Ace FirstServe))
+                , test "Step 4 on Serve winner path holds no tag" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsg ServeWinnerTapped
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (ServeWinner FirstServe))
+                , test "Step 4 on Double fault path holds no tag" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ FaultTapped, DoubleFaultTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry DoubleFault)
+                , test "Undo on serve path steps back to Step 2" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ AceTapped, UndoTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (ServeResultEntry FirstServe)
+                ]
+            , describe "Rally path — tagging"
+                [ test "Step 4 opens after Step 3 with no tag selected" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA ]
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (InRally FirstServe PlayerA Nothing))
+                , test "tapping Winner selects it" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, WinnerTagTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (InRally FirstServe PlayerA (Just Winner)))
+                , test "tapping Winner again deselects it" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, WinnerTagTapped, WinnerTagTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (InRally FirstServe PlayerA Nothing))
+                , test "tapping Unforced error selects it" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, UnforcedErrorTagTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (InRally FirstServe PlayerA (Just UnforcedError)))
+                , test "tapping Unforced error again deselects it" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, UnforcedErrorTagTapped, UnforcedErrorTagTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (InRally FirstServe PlayerA Nothing))
+                , test "selecting Winner while Unforced error is active deselects Unforced error" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, UnforcedErrorTagTapped, WinnerTagTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (InRally FirstServe PlayerA (Just Winner)))
+                , test "selecting Unforced error while Winner is active deselects Winner" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, WinnerTagTapped, UnforcedErrorTagTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (InRally FirstServe PlayerA (Just UnforcedError)))
+                , test "Save point without tag records outcome as untagged" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerB, SavePointTapped ]
+                            |> .match
+                            |> .points
+                            |> Expect.equal [ { server = PlayerA, outcome = InRally FirstServe PlayerB Nothing } ]
+                , test "Save point with Winner tag records the winner tag" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, WinnerTagTapped, SavePointTapped ]
+                            |> .match
+                            |> .points
+                            |> Expect.equal [ { server = PlayerA, outcome = InRally FirstServe PlayerA (Just Winner) } ]
+                , test "Save point with Unforced error tag records the unforced error tag" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerB, UnforcedErrorTagTapped, SavePointTapped ]
+                            |> .match
+                            |> .points
+                            |> Expect.equal [ { server = PlayerA, outcome = InRally FirstServe PlayerB (Just UnforcedError) } ]
+                , test "Undo on rally path with tag selected deselects the tag" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, WinnerTagTapped, UndoTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (RallyResultEntry (InRally FirstServe PlayerA Nothing))
+                , test "Undo on rally path with no tag steps back to Step 3" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, UndoTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (WhoWonEntry FirstServe)
+                ]
+            , describe "Save point shared behaviour"
+                [ test "Save point resets to first-serve state" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, SavePointTapped ]
+                            |> .pointEntry
+                            |> Expect.equal (ServeResultEntry FirstServe)
+                , test "Save point clears trackingStarted" <|
+                    \_ ->
+                        freshModel
+                            |> applyMsgs [ InRallyTapped, RallyWonBy PlayerA, SavePointTapped ]
+                            |> .trackingStarted
+                            |> Expect.equal False
+                ]
             ]
         , describe "Collapsed Step 2 summary label"
             [ test "Ace outcome produces label Ace" <|

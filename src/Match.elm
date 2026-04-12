@@ -97,6 +97,7 @@ type alias Match =
 
 type RallyTag
     = Winner
+    | UnforcedError
 
 
 {-| Whether a serve was a first or second serve.
