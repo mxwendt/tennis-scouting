@@ -1,0 +1,33 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Elm (purely functional, The Elm Architecture / TEA), Tailwind CSS
+  Domain: mobile-first tennis match tracking app used by a teammate on the sideline
+  Users: Scout/Tracker (enters data point-by-point during live match), Coach/Player (reviews stats)
+  Data persistence: Local storage only — no backend, no server
+  Distribution: Progressive Web App (PWA), installable to home screen on iOS and Android
+
+  Elm conventions:
+  - Pure functional paradigm, strong static types, no side-effects in business logic
+  - No null/undefined — use Maybe and Result
+  - No runtime exceptions — compiler guarantees eliminate whole classes of bugs
+  - Data is immutable — all updates return new values using record update syntax
+  - Use case..of everywhere for pattern matching — compiler enforces exhaustive branches
+  - Each file is one module with explicit exposing list
+  - Entry point: src/Main.elm
+
+  Key domain types (defined in src/Match.elm):
+  - Player: PlayerA | PlayerB
+  - MatchConfig: match format, set format, tiebreak format, deuce format, initial server
+  - Point: server, serve outcome, rally tag, winner
+  - ServeOutcome: Ace | ServeWinner | Fault | DoubleFault | InRally
+  - RallyTag: Winner | UnforcedError
+  - MatchFormat: BestOf3 | BestOf5
+  - SetFormat: Standard | ProSet
+  - DeuceFormat: StandardDeuce | NoAd
+  - TiebreakFormat: StandardTiebreak | MatchTiebreak
+
+  Source files: src/Main.elm, src/Match.elm, src/MatchSetup.elm, src/LiveTracking.elm, src/ScoreEngine.elm
+
+  Verification: npm run format (elm-format), npm run review (elm-review), npm test (elm-test)
+  Always pin NPM dependencies to exact versions.
