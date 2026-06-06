@@ -1,10 +1,4 @@
-# live-stats Specification
-
-## Purpose
-
-The live stats panel shows a condensed, always up-to-date statistical summary during the match. It is collapsible so the tracker can focus on point entry when needed. All statistics update automatically after every saved point. It gives the coach or tracker a quick read on the match state without leaving the Live Tracking screen.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Six stats displayed
 The system SHALL display the following six statistics side by side for both players:
