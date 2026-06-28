@@ -88,6 +88,7 @@ type alias Match =
     , config : MatchConfig
     , metadata : MatchMetadata
     , points : List Point
+    , finished : Bool
     }
 
 

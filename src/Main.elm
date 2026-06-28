@@ -93,6 +93,7 @@ type Msg
     | LiveTrackingMsg LiveTracking.Msg
     | OpenMatch Match
     | SummaryBackTapped
+    | SummaryResumeTapped
     | LiveSummaryBackTapped
 
 
@@ -128,6 +129,7 @@ update msg model =
                                     , config = config
                                     , metadata = metadata
                                     , points = []
+                                    , finished = False
                                     }
 
                                 newMatches =
@@ -158,19 +160,59 @@ update msg model =
                     ( model, Cmd.none )
 
         OpenMatch match ->
-            let
-                matchState =
-                    deriveMatchState match.config match.points
-            in
-            case matchState.matchStatus of
-                WonBy _ ->
-                    ( { model | page = MatchSummaryPage match }, Cmd.none )
+            if match.finished then
+                ( { model | page = MatchSummaryPage match }, Cmd.none )
 
-                InProgress ->
-                    ( { model | page = LiveTrackingPage (LiveTracking.init match) }, Cmd.none )
+            else
+                let
+                    matchState =
+                        deriveMatchState match.config match.points
+                in
+                case matchState.matchStatus of
+                    WonBy _ ->
+                        ( { model | page = MatchSummaryPage match }, Cmd.none )
+
+                    InProgress ->
+                        ( { model | page = LiveTrackingPage (LiveTracking.init match) }, Cmd.none )
 
         SummaryBackTapped ->
             ( { model | page = MatchListPage }, Cmd.none )
+
+        SummaryResumeTapped ->
+            case model.page of
+                MatchSummaryPage match ->
+                    let
+                        resumedMatch =
+                            { match | finished = False }
+
+                        newMatches =
+                            List.map
+                                (\m ->
+                                    if m.id == resumedMatch.id then
+                                        resumedMatch
+
+                                    else
+                                        m
+                                )
+                                model.matches
+
+                        newModel =
+                            { model
+                                | matches = newMatches
+                                , page = LiveTrackingPage (LiveTracking.init resumedMatch)
+                            }
+                    in
+                    ( newModel
+                    , saveState
+                        (encodeSavedState
+                            { nextId = newModel.nextId
+                            , matches = newMatches
+                            }
+                        )
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
         LiveSummaryBackTapped ->
             case model.page of
@@ -231,6 +273,40 @@ update msg model =
                             , Cmd.none
                             )
 
+                        LiveTracking.MatchFinished ->
+                            let
+                                liveMatch =
+                                    newLiveModel.match
+
+                                finishedMatch =
+                                    { liveMatch | finished = True }
+
+                                newMatches =
+                                    List.map
+                                        (\m ->
+                                            if m.id == finishedMatch.id then
+                                                finishedMatch
+
+                                            else
+                                                m
+                                        )
+                                        model.matches
+
+                                newModel =
+                                    { model
+                                        | matches = newMatches
+                                        , page = MatchSummaryPage finishedMatch
+                                    }
+                            in
+                            ( newModel
+                            , saveState
+                                (encodeSavedState
+                                    { nextId = newModel.nextId
+                                    , matches = newMatches
+                                    }
+                                )
+                            )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -261,7 +337,17 @@ view model =
             Html.map LiveTrackingMsg (LiveTracking.view liveModel)
 
         MatchSummaryPage match ->
-            MatchSummary.view (MatchSummary.FromMatchList SummaryBackTapped) match
+            if match.finished then
+                MatchSummary.view
+                    (MatchSummary.FromMatchListFinished
+                        { onBack = SummaryBackTapped
+                        , onResume = SummaryResumeTapped
+                        }
+                    )
+                    match
+
+            else
+                MatchSummary.view (MatchSummary.FromMatchList SummaryBackTapped) match
 
         SummaryFromLivePage liveModel ->
             MatchSummary.view (MatchSummary.FromLiveTracking LiveSummaryBackTapped) liveModel.match
@@ -318,11 +404,14 @@ viewMatchRow match =
             deriveMatchState match.config match.points
 
         ( statusLabel, statusClass ) =
-            case matchState.matchStatus of
-                WonBy _ ->
+            case ( match.finished, matchState.matchStatus ) of
+                ( _, WonBy _ ) ->
                     ( "Final", "text-[11px] text-gray-400 font-medium" )
 
-                InProgress ->
+                ( True, InProgress ) ->
+                    ( "Stopped", "text-[11px] text-gray-400 font-medium" )
+
+                ( False, InProgress ) ->
                     ( "In Progress", "text-[11px] text-amber-400 font-medium" )
     in
     button
@@ -362,6 +451,7 @@ encodeMatch match =
         , ( "config", encodeMatchConfig match.config )
         , ( "metadata", encodeMatchMetadata match.metadata )
         , ( "points", Encode.list encodePoint match.points )
+        , ( "finished", Encode.bool match.finished )
         ]
 
 
@@ -529,14 +619,17 @@ decodeSavedState =
 
 decodeMatch : Decode.Decoder Match
 decodeMatch =
-    Decode.map4
-        (\id config metadata points ->
-            { id = id, config = config, metadata = metadata, points = points }
+    Decode.map5
+        (\id config metadata points finished ->
+            { id = id, config = config, metadata = metadata, points = points, finished = finished }
         )
         (Decode.field "id" Decode.int)
         (Decode.field "config" decodeMatchConfig)
         (Decode.field "metadata" decodeMatchMetadata)
         (Decode.field "points" (Decode.list decodePoint))
+        (Decode.maybe (Decode.field "finished" Decode.bool)
+            |> Decode.map (Maybe.withDefault False)
+        )
 
 
 decodeMatchConfig : Decode.Decoder MatchConfig

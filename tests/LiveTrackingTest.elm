@@ -35,6 +35,7 @@ defaultMatch =
     , config = defaultConfig
     , metadata = defaultMetadata
     , points = []
+    , finished = False
     }
 
 

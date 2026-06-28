@@ -45,6 +45,7 @@ type Event
     | MatchUpdated Match
     | NavigateBack
     | NavigateToSummary
+    | MatchFinished
 
 
 
@@ -67,6 +68,7 @@ type Msg
     | BackTapped
     | Step1Tapped
     | ViewSummaryTapped
+    | FinishMatchTapped
     | ServerOverrideTapped Player
 
 
@@ -306,6 +308,9 @@ update msg model =
 
         ViewSummaryTapped ->
             ( model, NavigateToSummary )
+
+        FinishMatchTapped ->
+            ( model, MatchFinished )
 
         ServerOverrideTapped player ->
             let
@@ -877,12 +882,26 @@ viewFooter model =
                     [ text "Restart" ]
                 ]
 
-          else
+          else if List.isEmpty model.match.points then
             button
                 [ onClick ViewSummaryTapped
                 , class "w-full bg-gray-700 text-gray-50 border-0 rounded-xl py-4 text-[15px] font-semibold cursor-pointer"
                 ]
                 [ text "View summary" ]
+
+          else
+            div [ class "flex gap-3" ]
+                [ button
+                    [ onClick ViewSummaryTapped
+                    , class "flex-1 bg-gray-700 text-gray-50 border-0 rounded-xl py-4 text-[15px] font-semibold cursor-pointer"
+                    ]
+                    [ text "View summary" ]
+                , button
+                    [ onClick FinishMatchTapped
+                    , class "flex-1 bg-gray-600 text-gray-50 border-0 rounded-xl py-4 text-[15px] font-semibold cursor-pointer"
+                    ]
+                    [ text "Finish" ]
+                ]
         ]
 
 

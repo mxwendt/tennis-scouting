@@ -12,11 +12,14 @@ import Stats exposing (MatchStats, compute)
 
   - `FromLiveTracking msg` — amber "Continue" button (user came from live tracking)
   - `FromMatchList msg` — grey "← Matches" back link (user came from the match list)
+  - `FromMatchListFinished` — "← Matches" back link plus a Resume button
+    (used when `match.finished == True`)
 
 -}
 type Mode msg
     = FromLiveTracking msg
     | FromMatchList msg
+    | FromMatchListFinished { onBack : msg, onResume : msg }
 
 
 view : Mode msg -> Match -> Html msg
@@ -44,6 +47,9 @@ view mode match =
 
                 FromMatchList onBack ->
                     viewListHeader onBack
+
+                FromMatchListFinished options ->
+                    viewFinishedHeader options
     in
     div [ class "min-h-screen bg-gray-900 text-gray-50 max-w-[480px] mx-auto flex flex-col" ]
         [ header
@@ -78,6 +84,23 @@ viewListHeader onBack =
             [ text "← Matches" ]
         , div [ class "text-base font-bold" ] [ text "Match Summary" ]
         , div [ class "w-20" ] []
+        ]
+
+
+viewFinishedHeader : { onBack : msg, onResume : msg } -> Html msg
+viewFinishedHeader { onBack, onResume } =
+    div [ class "sticky top-0 z-10 bg-gray-900 border-b border-gray-700 flex items-center justify-between py-4 px-5" ]
+        [ button
+            [ onClick onBack
+            , class "bg-transparent border-0 rounded-md text-gray-400 text-sm font-semibold cursor-pointer py-2"
+            ]
+            [ text "← Matches" ]
+        , div [ class "text-base font-bold" ] [ text "Match Summary" ]
+        , button
+            [ onClick onResume
+            , class "bg-gray-700 text-gray-50 border-0 rounded-md py-2 px-4 text-sm font-semibold cursor-pointer"
+            ]
+            [ text "Resume" ]
         ]
 
 
