@@ -5,6 +5,7 @@ A tennis match scouting app built with [Elm](https://elm-lang.org) and [Tailwind
 ## Prerequisites
 
 - [Node.js](https://nodejs.org)
+- [OpenSpec](https://github.com/Fission-AI/OpenSpec) — installed globally , run as `openspec <command>`
 
 ## Install
 
@@ -20,6 +21,10 @@ Outputs are written to `dist/`.
 
 1. Run `npm run dev`
 2. Open browser http://127.0.0.1:8080/
+
+### OpenSpec
+
+Working with [OpenSpec](https://github.com/Fission-AI/OpenSpec/discussions/181) in Zed.
 
 ## Code Quality
 
