@@ -5,7 +5,6 @@ import Html.Attributes exposing (class, disabled)
 import Html.Events exposing (onClick)
 import Match exposing (Match, MatchFormat(..), Player(..), RallyTag(..), ServeOutcome(..), ServePhase(..))
 import ScoreEngine exposing (GameScore(..), MatchState, deriveMatchState, otherPlayer)
-import Stats
 
 
 
@@ -23,7 +22,6 @@ type alias Model =
     , pointEntry : PointEntry
     , trackingStarted : Bool
     , step1Expanded : Bool
-    , statsExpanded : Bool
     , serverOverride : Maybe Player
     }
 
@@ -34,7 +32,6 @@ init match =
     , pointEntry = ServeResultEntry FirstServe
     , trackingStarted = False
     , step1Expanded = False
-    , statsExpanded = True
     , serverOverride = Nothing
     }
 
@@ -47,6 +44,7 @@ type Event
     = NoEvent
     | MatchUpdated Match
     | NavigateBack
+    | NavigateToSummary
 
 
 
@@ -68,7 +66,7 @@ type Msg
     | ChangeServeResultTapped
     | BackTapped
     | Step1Tapped
-    | ToggleStatsTapped
+    | ViewSummaryTapped
     | ServerOverrideTapped Player
 
 
@@ -306,8 +304,8 @@ update msg model =
         Step1Tapped ->
             ( { model | step1Expanded = not model.step1Expanded }, NoEvent )
 
-        ToggleStatsTapped ->
-            ( { model | statsExpanded = not model.statsExpanded }, NoEvent )
+        ViewSummaryTapped ->
+            ( model, NavigateToSummary )
 
         ServerOverrideTapped player ->
             let
@@ -395,7 +393,6 @@ view model =
                 , viewStep4 model
                 ]
             ]
-        , viewStats model.statsExpanded model.match
         , viewFooter model
         ]
 
@@ -546,81 +543,6 @@ playerName match player =
 
         PlayerB ->
             match.metadata.playerBName
-
-
-
--- STATS PANEL
-
-
-viewStats : Bool -> Match -> Html Msg
-viewStats expanded match =
-    let
-        statsA =
-            Stats.compute PlayerA match.config match.points
-
-        statsB =
-            Stats.compute PlayerB match.config match.points
-    in
-    div [ class "mx-4 mb-4 bg-gray-800 rounded-xl overflow-hidden" ]
-        [ button
-            [ onClick ToggleStatsTapped
-            , class "w-full flex items-center gap-4 px-4 py-3 bg-transparent border-0 cursor-pointer text-left"
-            ]
-            [ div [ class "flex-1 text-[11px] text-gray-500 uppercase tracking-[0.05em] font-medium" ]
-                [ text "Stats" ]
-            , div [ class "w-16 text-center text-[13px] font-medium text-gray-200 truncate" ]
-                [ text match.metadata.playerAName ]
-            , div [ class "w-16 text-center text-[13px] font-medium text-gray-200 truncate" ]
-                [ text match.metadata.playerBName ]
-            , span [ class "text-amber-400 text-[12px] font-medium w-4 text-center" ]
-                [ text
-                    (if expanded then
-                        "▲"
-
-                     else
-                        "▼"
-                    )
-                ]
-            ]
-        , if expanded then
-            div [ class "px-4 pb-3 flex flex-col" ]
-                [ viewStatRow "1st Serve %" (pct statsA.firstServeIn statsA.firstServeAttempts) (pct statsB.firstServeIn statsB.firstServeAttempts)
-                , viewStatRow "1st Srv Won" (pct statsA.firstServePointsWon statsA.firstServePointsPlayed) (pct statsB.firstServePointsWon statsB.firstServePointsPlayed)
-                , viewStatRow "2nd Srv Won" (pct statsA.secondServePointsWon statsA.secondServePointsPlayed) (pct statsB.secondServePointsWon statsB.secondServePointsPlayed)
-                , viewStatRow "Winners" (String.fromInt statsA.winners) (String.fromInt statsB.winners)
-                , viewStatRow "Unforced Err" (String.fromInt statsA.unforcedErrors) (String.fromInt statsB.unforcedErrors)
-                , viewStatRow "Break Pts" (fraction statsA.breakPointsWon statsA.breakPointOpportunities) (fraction statsB.breakPointsWon statsB.breakPointOpportunities)
-                ]
-
-          else
-            text ""
-        ]
-
-
-viewStatRow : String -> String -> String -> Html Msg
-viewStatRow label valueA valueB =
-    div [ class "flex items-center py-[3px]" ]
-        [ div [ class "flex-1 text-[12px] text-gray-500" ]
-            [ text label ]
-        , div [ class "w-16 text-center text-[13px] font-semibold" ]
-            [ text valueA ]
-        , div [ class "w-16 text-center text-[13px] font-semibold mr-4" ]
-            [ text valueB ]
-        ]
-
-
-pct : Int -> Int -> String
-pct num den =
-    if den == 0 then
-        "–"
-
-    else
-        String.fromInt (round (toFloat num / toFloat den * 100)) ++ "%"
-
-
-fraction : Int -> Int -> String
-fraction won opp =
-    String.fromInt won ++ "/" ++ String.fromInt opp
 
 
 viewStep1 : Model -> MatchState -> Html Msg
@@ -957,7 +879,8 @@ viewFooter model =
 
           else
             button
-                [ class "w-full bg-gray-700 text-gray-50 border-0 rounded-xl py-4 text-[15px] font-semibold cursor-default"
+                [ onClick ViewSummaryTapped
+                , class "w-full bg-gray-700 text-gray-50 border-0 rounded-xl py-4 text-[15px] font-semibold cursor-pointer"
                 ]
                 [ text "View summary" ]
         ]

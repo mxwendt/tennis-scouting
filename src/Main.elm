@@ -9,6 +9,8 @@ import Json.Encode as Encode
 import LiveTracking
 import Match exposing (DeuceFormat(..), Match, MatchConfig, MatchFormat(..), MatchMetadata, Player(..), Point, RallyTag(..), ServeOutcome(..), ServePhase(..), SetFormat(..), Surface(..), TiebreakFormat(..))
 import MatchSetup
+import MatchSummary
+import ScoreEngine exposing (MatchStatus(..), deriveMatchState)
 
 
 port saveState : Encode.Value -> Cmd msg
@@ -22,6 +24,8 @@ type Page
     = MatchListPage
     | MatchSetupPage MatchSetup.Model
     | LiveTrackingPage LiveTracking.Model
+    | MatchSummaryPage Match
+    | SummaryFromLivePage LiveTracking.Model
 
 
 type alias Model =
@@ -88,6 +92,8 @@ type Msg
     | MatchSetupMsg MatchSetup.Msg
     | LiveTrackingMsg LiveTracking.Msg
     | OpenMatch Match
+    | SummaryBackTapped
+    | LiveSummaryBackTapped
 
 
 
@@ -152,9 +158,27 @@ update msg model =
                     ( model, Cmd.none )
 
         OpenMatch match ->
-            ( { model | page = LiveTrackingPage (LiveTracking.init match) }
-            , Cmd.none
-            )
+            let
+                matchState =
+                    deriveMatchState match.config match.points
+            in
+            case matchState.matchStatus of
+                WonBy _ ->
+                    ( { model | page = MatchSummaryPage match }, Cmd.none )
+
+                InProgress ->
+                    ( { model | page = LiveTrackingPage (LiveTracking.init match) }, Cmd.none )
+
+        SummaryBackTapped ->
+            ( { model | page = MatchListPage }, Cmd.none )
+
+        LiveSummaryBackTapped ->
+            case model.page of
+                SummaryFromLivePage liveModel ->
+                    ( { model | page = LiveTrackingPage liveModel }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         LiveTrackingMsg subMsg ->
             case model.page of
@@ -202,6 +226,11 @@ update msg model =
                             , Cmd.none
                             )
 
+                        LiveTracking.NavigateToSummary ->
+                            ( { model | page = SummaryFromLivePage newLiveModel }
+                            , Cmd.none
+                            )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -230,6 +259,12 @@ view model =
 
         LiveTrackingPage liveModel ->
             Html.map LiveTrackingMsg (LiveTracking.view liveModel)
+
+        MatchSummaryPage match ->
+            MatchSummary.view (MatchSummary.FromMatchList SummaryBackTapped) match
+
+        SummaryFromLivePage liveModel ->
+            MatchSummary.view (MatchSummary.FromLiveTracking LiveSummaryBackTapped) liveModel.match
 
 
 
@@ -278,6 +313,18 @@ viewEmptyState =
 
 viewMatchRow : Match -> Html Msg
 viewMatchRow match =
+    let
+        matchState =
+            deriveMatchState match.config match.points
+
+        ( statusLabel, statusClass ) =
+            case matchState.matchStatus of
+                WonBy _ ->
+                    ( "Final", "text-[11px] text-gray-400 font-medium" )
+
+                InProgress ->
+                    ( "In Progress", "text-[11px] text-amber-400 font-medium" )
+    in
     button
         [ onClick (OpenMatch match)
         , class "flex items-center justify-between w-full bg-gray-800 border-0 rounded-xl py-[14px] px-4 mb-2 cursor-pointer text-left text-gray-50 box-border"
@@ -291,8 +338,8 @@ viewMatchRow match =
                 [ text match.metadata.date ]
             ]
         , div
-            [ class "text-[11px] text-amber-400 font-medium" ]
-            [ text "In Progress" ]
+            [ class statusClass ]
+            [ text statusLabel ]
         ]
 
 
