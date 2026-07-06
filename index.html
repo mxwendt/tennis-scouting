@@ -3,6 +3,30 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        <!-- PWA meta tags -->
+        <meta name="theme-color" content="#1e40af" />
+        <meta
+            name="description"
+            content="Track your tennis match scores and statistics"
+        />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta
+            name="apple-mobile-web-app-status-bar-style"
+            content="black-translucent"
+        />
+        <meta name="apple-mobile-web-app-title" content="Tennis" />
+
+        <!-- Web App Manifest -->
+        <link rel="manifest" href="/manifest.json" />
+
+        <!-- Apple touch icon (iOS home screen) -->
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+        <!-- Favicon -->
+        <link rel="shortcut icon" href="/favicon.svg" />
+
         <link href="dist/main.css" rel="stylesheet" />
         <title>Tennis Scouting</title>
     </head>
@@ -38,6 +62,20 @@
                     // Storage quota exceeded or private browsing — fail silently.
                 }
             });
+        </script>
+        <script>
+            if ("serviceWorker" in navigator) {
+                window.addEventListener("load", () => {
+                    navigator.serviceWorker
+                        .register("/sw.js")
+                        .then((reg) =>
+                            console.log("[SW] Registered, scope:", reg.scope),
+                        )
+                        .catch((err) =>
+                            console.error("[SW] Registration failed:", err),
+                        );
+                });
+            }
         </script>
     </body>
 </html>
