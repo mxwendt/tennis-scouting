@@ -19,13 +19,13 @@
         <meta name="apple-mobile-web-app-title" content="Tennis" />
 
         <!-- Web App Manifest -->
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="manifest.json" />
 
         <!-- Apple touch icon (iOS home screen) -->
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" href="icons/icon-192.png" />
 
         <!-- Favicon -->
-        <link rel="shortcut icon" href="/favicon.svg" />
+        <link rel="shortcut icon" href="favicon.svg" />
 
         <link href="dist/main.css" rel="stylesheet" />
         <title>Tennis Scouting</title>
@@ -67,7 +67,7 @@
             if ("serviceWorker" in navigator) {
                 window.addEventListener("load", () => {
                     navigator.serviceWorker
-                        .register("/sw.js")
+                        .register("sw.js")
                         .then((reg) =>
                             console.log("[SW] Registered, scope:", reg.scope),
                         )

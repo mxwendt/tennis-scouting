@@ -1,12 +1,14 @@
 const CACHE_NAME = "tennis-scouting-v1";
 
 const PRECACHE_URLS = [
-  "/",
-  "/index.html",
-  "/build/main.js",
-  "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
+  "./",
+  "./index.html",
+  "./dist/main.js",
+  "./dist/main.css",
+  "./manifest.json",
+  "./favicon.svg",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
 ];
 
 // ---------------------------------------------------------------------------
@@ -70,7 +72,7 @@ self.addEventListener("fetch", (event) => {
           .catch(() => {
             // If navigation fails offline, serve the cached shell
             if (event.request.destination === "document") {
-              return caches.match("/index.html");
+              return caches.match("./index.html");
             }
           });
       }),
