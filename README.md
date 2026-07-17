@@ -4,8 +4,8 @@ A tennis match scouting app built with [Elm](https://elm-lang.org) and [Tailwind
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org)
-- [OpenSpec](https://github.com/Fission-AI/OpenSpec) — installed globally , run as `openspec <command>`
+- [Node.js](https://nodejs.org) installed globally via [Volta](https://volta.sh)
+- [OpenSpec](https://openspec.dev) installed globally via [Volta](https://volta.sh)
 
 ## Install
 
