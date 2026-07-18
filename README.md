@@ -26,6 +26,8 @@ Outputs are written to `dist/`.
 
 Working with [OpenSpec](https://github.com/Fission-AI/OpenSpec/discussions/181) in Zed.
 
+Skills live under `.agents/`.
+
 ## Code Quality
 
 1. Run `npm run format` to auto-format Elm source files
